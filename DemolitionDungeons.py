@@ -3,75 +3,94 @@
 
 from cmu_112_graphics import *
 
+
 class Player():
     def __init__(self):
-        self.buildings = []
-        self.buildings.insert(0, Entrance(self))
+        self.buildings = [[None,None,None],[None,None,None],[None,None,None]]
+        self.buildings[1][1] = Entrance(self)
         self.resources = {"gold":500}
 
     # helper function for debugging before GUI
     def printBuildings(self):
-        for i in range(len(self.buildings)):
-            building = self.buildings[i]
-            print(i, building.name, building.adjacent)     
+        for row in self.buildings:
+            print(row)  
 
     def endTurn(self):
         for building in self.buildings:
             if type(building) == GoldMine:
                 self.resources["gold"] += 50
 
+    # return a list of tuples of all available spaces to build
     def getConstructionZones(self):
-        result = dict()
-        for i in range(len(self.buildings)):
-            building = self.buildings[i]
-            if type(building) == Construction:
-                result[building] = i
+        result = []
+        for row in range(len(self.buildings)):
+            for col in range(len(self.buildings[0])):
+                building = self.buildings[row][col]
+                if building == None:
+
+                    # checks orthoganol spaces to see if they are buildings
+                    def checkNone(buildings, row, col):
+                        if (row<0 or col<0 or row>=len(buildings)
+                            or col>=len(buildings[0])):
+                            return False
+                        return buildings[row][col] != None
+
+                    if (checkNone(self.buildings, row+1, col) or 
+                        checkNone(self.buildings, row-1, col) or
+                        checkNone(self.buildings, row, col+1) or
+                        checkNone(self.buildings, row, col-1)):
+                        result.append((row, col))
         return result
 
     def canPurchase(self, building):
         currResourceType = self.resources[building.cost[0]]
         return not currResourceType < building.cost[1]
     
-    #construction index comes from dictinoary in get construction zones function
-    def upgrade(self, constructionIndex, upgradeBuilding):
+    # zoneIndex is tuple of (row,col) in buildings
+    # pruchaseBuilding is the building to pruchase
+    def purchase(self, zoneIndex, pruchaseBuilding):
         # can you purchase this building?
-        if not canPurchase(upgradeBuilding):
+        if not self.canPurchase(pruchaseBuilding):
             return False
+        self.buildings[zoneIndex[0]][zoneIndex[1]] = pruchaseBuilding
+        
+        self.expandMap(zoneIndex)
 
-        # Replaces contruction zone with new building of same adjacency index
-        currentZone = self.buildings[constructionIndex]
-        upgradeBuilding.adjacent = currentZone.adjacent
-        self.buildings[constructionIndex] = upgradeBuilding
+    def expandMap(self, zoneIndex):
+        # checks if on top row
+        if zoneIndex[0] == 0:
+            newRow = []
+            for i in range(len(self.buildings[0])):
+                newRow.append(None)
+            self.buildings.insert(0, newRow)
 
-        # make new construction zones
-        for index in range(len(upgradeBuilding.adjacent)):
-            if upgradeBuilding.adjacent[index] == None:
-                newConstructionIndex = len(self.buildings)
-                upgradeBuilding.adjacent[index] = newConstructionIndex
-                self.buildings.append(Construction(index, constructionIndex))
-    
-# class Building():
-#     def __init__(self, base):
-#         self.name = ""
-#         self.allyTroops = []
-#         self.enemyTroops = []
+        # checks if on first col
+        if zoneIndex[1] == 0:
+            for row in self.buildings:
+                row.insert(0, None)
+        
+        # checks if on bottom row
+        if zoneIndex[0] == len(self.buildings) - 1:
+            newRow = []
+            for i in range(len(self.buildings[0])):
+                newRow.append(None)
+            self.buildings.append(newRow)
+        
+        # checks if on last col
+        if zoneIndex[1] == len(self.buildings[0]) - 1:
+            for row in self.buildings:
+                row.append(None)
 
-#         #0:up, 1:right, 2:down, 3:left
-#         self.adjacent = [None, None, None, None]
+
+     
+class Building():
+    def __init__(self):
+        self.allyTroops = []
+        self.enemyTroops = []
 
 class Entrance(): # make building superclass
     def __init__(self, player):
         self.name = "Entrance"
-        # refers to 4 construction zones necessary to start game
-        self.adjacent = [1,2,3,4]
-        for i in range(4):
-            player.buildings.append(Construction(i, 0))
-
-class Construction(): # make building superclass
-    def __init__(self, oldPos, oldIndex):
-        self.name = "Construction"
-        self.adjacent = [None, None, None, None]
-        self.adjacent[oldPos-2] = oldIndex
     
     def __repr__(self):
         return f'{self.name}'
@@ -80,7 +99,11 @@ class GoldMine(): # make building superclass
     def __init__(self):
         self.name = "Goldmine"
         self.cost = ("gold", 200)
-
+    
+    def __repr__(self):
+        return f'{self.name}'
 
 gus = Player()
+gus.purchase((0,1), GoldMine())
+gus.printBuildings()
 print(gus.getConstructionZones())
