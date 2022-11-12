@@ -7,8 +7,9 @@ from cmu_112_graphics import *
 class Player():
     def __init__(self):
         self.buildings = [[None,None,None],[None,None,None],[None,None,None]]
-        self.buildings[1][1] = Entrance(self)
+        self.buildings[1][1] = Entrance(self, 0)
         self.resources = {"gold":500}
+        self.nextId = 1
 
     # helper function for debugging before GUI
     def printBuildings(self):
@@ -80,30 +81,58 @@ class Player():
         if zoneIndex[1] == len(self.buildings[0]) - 1:
             for row in self.buildings:
                 row.append(None)
-
-
      
 class Building():
-    def __init__(self):
+    def __init__(self, id):
+        self.id = id
         self.allyTroops = []
         self.enemyTroops = []
+        self.traps = []
+        self.health = 300
 
-class Entrance(): # make building superclass
-    def __init__(self, player):
-        self.name = "Entrance"
-    
     def __repr__(self):
         return f'{self.name}'
 
-class GoldMine(): # make building superclass
-    def __init__(self):
+class Entrance(Building):
+    def __init__(self, id):
+        super().__init__(id)
+        self.name = "Entrance"
+
+class GoldMine(Building):
+    def __init__(self, id):
+        super().__init__(id)
         self.name = "Goldmine"
         self.cost = ("gold", 200)
+
+class Barracks(Building):
+    def __init__(self, id):
+        super().__init__(id)
+        self.name = "Barracks"
+        self.cost = ("gold", 100)
     
-    def __repr__(self):
-        return f'{self.name}'
+    # def buildTroop(troop):
+
+class Troop():
+    def __init__(self, attack, health, movement, cost):
+        self.attack = attack
+        self.maxHealth = health
+        self.curHealth = health
+        self.movement = movement
+        self.cost = cost
+
+    def move(self, startCord, finishCord, buidlings):
+        # figure out maze finding thing
+        pass
+
+class Soldier(Troop):
+    def __init__(self):
+        super().__init__(attack = 10, health = 35, movement = 1,
+            cost = ("gold", 50))
+
+class Regiment(Troop):
+    def __init__(self, troops):
+        self.troops = troops
+
+
 
 gus = Player()
-gus.purchase((0,1), GoldMine())
-gus.printBuildings()
-print(gus.getConstructionZones())
