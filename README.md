@@ -1,1 +1,1 @@
-amongus
+So um, I started using git hub after starting the project, so the version history there kinda starts with a lot. Sorry about that.
