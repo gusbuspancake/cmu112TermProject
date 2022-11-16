@@ -7,8 +7,8 @@ from cmu_112_graphics import *
 class Player():
     def __init__(self):
         self.buildings = [[None,None,None],[None,None,None],[None,None,None]]
-        self.buildings[1][1] = Entrance(self, 0)
-        self.resources = {"gold":500}
+        self.buildings[1][1] = Entrance(0)
+        self.resources = {"gold":10000000}
         self.nextId = 1
 
     # helper function for debugging before GUI
@@ -30,6 +30,7 @@ class Player():
                 if building == None:
 
                     # checks orthoganol spaces to see if they are buildings
+                    # https://www.geeksforgeeks.org/python-inner-functions/
                     def checkNone(buildings, row, col):
                         if (row<0 or col<0 or row>=len(buildings)
                             or col>=len(buildings[0])):
@@ -96,12 +97,12 @@ class Building():
 class Entrance(Building):
     def __init__(self, id):
         super().__init__(id)
-        self.name = "Entrance"
+        self.name = "Entr"
 
 class GoldMine(Building):
     def __init__(self, id):
         super().__init__(id)
-        self.name = "Goldmine"
+        self.name = "Gold"
         self.cost = ("gold", 200)
 
 class Barracks(Building):
@@ -120,9 +121,54 @@ class Troop():
         self.movement = movement
         self.cost = cost
 
-    def move(self, startCord, finishCord, buidlings):
-        # figure out maze finding thing
-        pass
+    
+
+    # https://www.geeksforgeeks.org/a-search-algorithm/
+    def move(self, startCord, finishCord, buildings):
+        openList = {startCord: 0}
+        closedList = {}
+
+        def manhattanDist(cord1, cord2):
+            return abs(cord1[0] - cord2[0]) + abs(cord1[1] - cord2[1])
+        
+        while not len(openList) == 0:
+
+            # find elm with smallest manhattanDist and remove from openList
+            smallestCord = (0,0)
+            smallestValue = len(buildings)**2
+            for key in openList:
+                if openList[key] < smallestValue:
+                    smallestCord = key
+                    smallestValue = openList[key]
+
+            curCord = smallestCord
+            curValue = smallestValue
+            del openList[curCord]
+            possibleMoves = [(0,1), (0,-1), (1,0), (-1,0)]
+            for move in possibleMoves:
+                newCord = (curCord[0] + move[0], curCord[1] + move[1])
+                # if orthogonal move is a wall, continue
+                if buildings[newCord[0]][newCord[1]] == None:
+                    continue
+                if newCord == finishCord:
+                    return closedList
+                newValue = (manhattanDist(newCord, curCord) + 
+                                manhattanDist(newCord, finishCord))
+
+                if newCord in openList:
+                    if openList[newCord] <= newValue:
+                        continue
+                        
+                if newCord in closedList:
+                    if closedList[newCord] <= newValue:
+                        continue
+                
+
+                openList[newCord] = newValue
+
+            closedList[curCord] = curValue
+
+        return False     
 
 class Soldier(Troop):
     def __init__(self):
@@ -136,3 +182,15 @@ class Regiment(Troop):
 
 
 gus = Player()
+gus.purchase((1,2), GoldMine(3))
+gus.purchase((1,3), GoldMine(4))
+gus.purchase((1,4), GoldMine(5))
+gus.purchase((2,4), GoldMine(6))
+gus.purchase((3,4), GoldMine(7))
+gus.purchase((3,3), GoldMine(8))
+gus.purchase((3,2), GoldMine(9))
+
+gus.printBuildings()
+
+gus.buildings[1][1].allyTroops.append(Soldier())
+print(gus.buildings[1][1].allyTroops[0].move((1,1),(3,2),gus.buildings))
