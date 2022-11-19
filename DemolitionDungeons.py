@@ -84,8 +84,8 @@ class Player():
      
 class Building():
     def __init__(self):
-        self.allyTroops = None
-        self.enemyTroops = None
+        self.allyRegiment = None
+        self.enemyRegiment = None
         self.traps = []
         self.health = 300
 
@@ -95,12 +95,12 @@ class Building():
 class Entrance(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Entrance"
+        self.name = "Entr"
 
 class GoldMine(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Goldmine"
+        self.name = "Gold"
         self.cost = ("gold", 200)
 
 class Barracks(Building):
@@ -128,6 +128,9 @@ class Troop():
         self.curMovement = movement
         self.cost = cost
         self.size = size
+    
+    def __repr__(self):
+        return f'{self.name}'
 
 class Soldier(Troop):
     def __init__(self):
@@ -136,8 +139,9 @@ class Soldier(Troop):
         self.name = "Soldier"
 
 class Regiment():
-    def __init__(self, troops):
+    def __init__(self, troops, onAllySide = True):
         self.troops = troops
+        self.onAllySide = onAllySide
 
     def getCurMovement(self):
         curMovement = self.troops[0].curMovement
@@ -152,26 +156,42 @@ class Regiment():
             size += troop.size
         return size
 
+    def cleanOutDead(self):
+        for troop in self.troops:
+            if troop.curHealth <= 0:
+                self.troops.remove(troop)
+
     # merges current regiment to regiment at final destination if one exist
     # returns new conjoioned regiment
     def merge(self, other):
         if other == None:
             return self
         else:
-            return Regiment(other.troops + self.troops)
+            return Regiment(other.troops + self.troops, other.onAllySide)
 
     def move(self, startCord, finishCord, buildings):
         path = self.movePath(startCord, finishCord, buildings)
-        curRoom = None
-        for roomCords in path:
-            curRoom = buildings[roomCords[0]][roomCords[1]]
+        curRoom = buildings[startCord[0]][startCord[1]]
+        if self.onAllySide:
+            curRoom.allyRegiment = None
+        else:
+            curRoom.enemyRegiment = None
+        for roomCord in path:
+            curRoom = buildings[roomCord[0]][roomCord[1]]
             for troop in self.troops:
                 troop.curMovement -= 1
-            if self.getCurMovement() <= len(path):
+            if not self.onAllySide:
+                for trap in curRoom.traps:
+                    trap.trip(buildings, roomCord, curRoom, self)
+            if self.getCurMovement() == 0:
                 break
-            if curRoom.enemyTroops.size >= self.size:
-                break
-        curRoom.allyTroops = self.merge(curRoom.allyTroops)
+            if not curRoom.enemyRegiment == None:
+                if curRoom.enemyRegiment.getSize() >= self.getSize():
+                    break
+        if self.onAllySide:
+            curRoom.allyRegiment = self.merge(curRoom.allyRegiment)
+        else:
+            curRoom.enemyRegiment = self.merge(curRoom.enemyRegiment)
 
     # https://www.geeksforgeeks.org/a-search-algorithm/
     def movePath(self, startCord, finishCord, buildings):
@@ -182,7 +202,7 @@ class Regiment():
             return abs(cord1[0] - cord2[0]) + abs(cord1[1] - cord2[1])
         
         while not len(openDict) == 0:
-
+            
             # find elm with smallest manhattanDist and remove from openList
             smallestCord = (0,0)
             smallestValue = len(buildings)**2
@@ -193,6 +213,7 @@ class Regiment():
 
             curCord = smallestCord
             curValue = smallestValue
+            
             del openDict[curCord]
             possibleMoves = [(0,1), (0,-1), (1,0), (-1,0)]
             for move in possibleMoves:
@@ -201,7 +222,7 @@ class Regiment():
                 if buildings[newCord[0]][newCord[1]] == None:
                     continue
                 if newCord == finishCord:
-                    return list(closedDict.keys())
+                    return list(closedDict.keys()) + [curCord, newCord]
                 newValue = (manhattanDist(newCord, curCord) + 
                                 manhattanDist(newCord, finishCord))
 
@@ -225,10 +246,19 @@ class Trap():
     def __init__(self):
         pass
 
+    def __repr__(self):
+        return f'{self.name}'
+
 class Bomb(Trap):
     def __init__(self):
         self.cost = ("gold", 10)
         self.name = "Bomb"
+    
+    def trip(self, buildings, roomCords, room, regiment):
+        for troop in regiment.troops:
+            troop.curHealth -= 25
+        regiment.cleanOutDead()
+        room.traps.remove(self)
 
 gus = Player()
 gus.purchase((1,2), GoldMine())
@@ -239,13 +269,14 @@ gus.purchase((3,4), GoldMine())
 gus.purchase((3,3), GoldMine())
 gus.purchase((3,2), GoldMine())
 
-gus.buildings[1][1].allyTroops = Regiment([Soldier()])
-linos = Regiment([Soldier(), Soldier()])
+gus.buildings[1][1].enemyRegiment = Regiment([Soldier(),Soldier()], False)
 
-gus.buildings[1][1].allyTroops = gus.buildings[1][1].allyTroops.merge(linos)
+print(gus.buildings[1][1].enemyRegiment.troops)
+gus.printBuildings()
 
-print(gus.buildings[1][1].allyTroops.troops)
-# gus.printBuildings()
+gus.buildings[1][3].traps.append(Bomb())
+gus.buildings[1][1].enemyRegiment.move((1,1),(3,2),gus.buildings)
 
-# gus.buildings[1][1].allyTroops = Regiment([Soldier()])
-# print(gus.buildings[1][1].allyTroops.movePath((1,1),(3,2),gus.buildings))
+print(gus.buildings[2][4].enemyRegiment.troops[0].curHealth)
+
+print(gus.buildings[1][3].traps)
