@@ -49,11 +49,12 @@ class Player():
     
     # zoneIndex is tuple of (row,col) in buildings
     # pruchaseBuilding is the building to pruchase
-    def purchase(self, zoneIndex, pruchaseBuilding):
+    def purchase(self, zoneIndex, building):
         # can you purchase this building?
-        if not self.canPurchase(pruchaseBuilding):
+        if not self.canPurchase(building):
             return False
-        self.buildings[zoneIndex[0]][zoneIndex[1]] = pruchaseBuilding
+        self.buildings[zoneIndex[0]][zoneIndex[1]] = building
+        self.resources[building.cost[0]] -= building.cost[1]
         
         self.expandMap(zoneIndex)
 
@@ -100,24 +101,45 @@ class Entrance(Building):
 class GoldMine(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Gold"
+        self.name = "GdMn"
         self.cost = ("gold", 200)
 
 class Barracks(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Barracks"
+        self.name = "Brck"
         self.cost = ("gold", 100)
-    
-    # def buildTroop(troop):
+        self.madeTroopThisTurn = False
+
+    def buildTroop(self, resources, troop):
+        if self.madeTroopThisTurn:
+            return False
+        currResourceType = resources[troop.cost[0]]
+        if currResourceType < troop.cost[1]:
+            return False
+        self.madeTroopThisTurn = True
+        tempReg = Regiment([troop])
+        self.allyRegiment = tempReg.merge(self.allyRegiment)
+
+        resources[troop.cost[0]] -= troop.cost[1]    
 
 class Factory(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Factory"
+        self.name = "Fcty"
         self.cost = ("gold", 100)
+        self.madeTrapThisTurn = False
 
-    # def buildTrap(trap):
+    def buildTrap(self, resources, trap):
+        if self.madeTrapThisTurn:
+            return False
+        currResourceType = resources[trap.cost[0]]
+        if currResourceType < trap.cost[1]:
+            return False
+        self.madeTrapThisTurn = True
+        self.traps.append(trap)
+
+        resources[trap.cost[0]] -= trap.cost[1]  
 
 class Troop():
     def __init__(self, attack, health, movement, size, cost = ("gold", 0)):
@@ -138,6 +160,23 @@ class Soldier(Troop):
             cost = ("gold", 50))
         self.name = "Soldier"
 
+    # soldiers attack the enemy troop with the largest size in the same room
+    def attack(self, room, enemyRegiment):
+        if enemyRegiment == None:
+            return False
+        biggestEnemy = None
+        biggestEnemySize = -999
+        for troop in enemyRegiment.troops:
+            if troop.size > biggestEnemySize:
+                biggestEnemy = troop
+                biggestEnemySize = troop.size
+            elif troop.size == biggestEnemySize:
+                if troop.curHealth > biggestEnemy.curHealth:
+                    biggestEnemy = troop
+                    biggestEnemySize = troop.size
+        biggestEnemy.curHealth -= self.attack
+        enemyRegiment.cleanOutDead(room)
+
 class Regiment():
     def __init__(self, troops, onAllySide = True):
         self.troops = troops
@@ -156,10 +195,17 @@ class Regiment():
             size += troop.size
         return size
 
-    def cleanOutDead(self):
+    def cleanOutDead(self, room):
         for troop in self.troops:
             if troop.curHealth <= 0:
                 self.troops.remove(troop)
+
+        if len(self.troops) == 0:
+            # self = None, i want this to work
+            if self.onAllySide:
+                room.allyRegiment = None
+            else:
+                room.enemyRegiment = None
 
     # merges current regiment to regiment at final destination if one exist
     # returns new conjoioned regiment
@@ -257,26 +303,24 @@ class Bomb(Trap):
     def trip(self, buildings, roomCords, room, regiment):
         for troop in regiment.troops:
             troop.curHealth -= 25
-        regiment.cleanOutDead()
+        regiment.cleanOutDead(room)
         room.traps.remove(self)
 
 gus = Player()
 gus.purchase((1,2), GoldMine())
 gus.purchase((1,3), GoldMine())
-gus.purchase((1,4), GoldMine())
-gus.purchase((2,4), GoldMine())
+gus.purchase((1,4), Factory())
+gus.purchase((2,4), Barracks())
 gus.purchase((3,4), GoldMine())
 gus.purchase((3,3), GoldMine())
 gus.purchase((3,2), GoldMine())
 
-gus.buildings[1][1].enemyRegiment = Regiment([Soldier(),Soldier()], False)
-
-print(gus.buildings[1][1].enemyRegiment.troops)
 gus.printBuildings()
 
-gus.buildings[1][3].traps.append(Bomb())
-gus.buildings[1][1].enemyRegiment.move((1,1),(3,2),gus.buildings)
-
-print(gus.buildings[2][4].enemyRegiment.troops[0].curHealth)
-
-print(gus.buildings[1][3].traps)
+gus.buildings[2][4].buildTroop(gus.resources, Soldier())
+# gus.buildings[2][4].buildTroop(gus.resources, Soldier())
+# gus.buildings[2][4].buildTroop(gus.resources, Soldier())
+print(gus.buildings[2][4].allyRegiment.troops)
+gus.buildings[2][4].allyRegiment.troops[0].curHealth = 0
+gus.buildings[2][4].allyRegiment.cleanOutDead(gus.buildings[2][4])
+print(gus.buildings[2][4].allyRegiment)
