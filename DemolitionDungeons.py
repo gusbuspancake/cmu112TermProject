@@ -7,9 +7,8 @@ from cmu_112_graphics import *
 class Player():
     def __init__(self):
         self.buildings = [[None,None,None],[None,None,None],[None,None,None]]
-        self.buildings[1][1] = Entrance(0)
+        self.buildings[1][1] = Entrance()
         self.resources = {"gold":10000000}
-        self.nextId = 1
 
     # helper function for debugging before GUI
     def printBuildings(self):
@@ -84,10 +83,9 @@ class Player():
                 row.append(None)
      
 class Building():
-    def __init__(self, id):
-        self.id = id
-        self.allyTroops = []
-        self.enemyTroops = []
+    def __init__(self):
+        self.allyTroops = None
+        self.enemyTroops = None
         self.traps = []
         self.health = 300
 
@@ -95,55 +93,107 @@ class Building():
         return f'{self.name}'
 
 class Entrance(Building):
-    def __init__(self, id):
-        super().__init__(id)
-        self.name = "Entr"
+    def __init__(self):
+        super().__init__()
+        self.name = "Entrance"
 
 class GoldMine(Building):
-    def __init__(self, id):
-        super().__init__(id)
-        self.name = "Gold"
+    def __init__(self):
+        super().__init__()
+        self.name = "Goldmine"
         self.cost = ("gold", 200)
 
 class Barracks(Building):
-    def __init__(self, id):
-        super().__init__(id)
+    def __init__(self):
+        super().__init__()
         self.name = "Barracks"
         self.cost = ("gold", 100)
     
     # def buildTroop(troop):
 
+class Factory(Building):
+    def __init__(self):
+        super().__init__()
+        self.name = "Factory"
+        self.cost = ("gold", 100)
+
+    # def buildTrap(trap):
+
 class Troop():
-    def __init__(self, attack, health, movement, cost):
+    def __init__(self, attack, health, movement, size, cost = ("gold", 0)):
         self.attack = attack
         self.maxHealth = health
         self.curHealth = health
-        self.movement = movement
+        self.maxMovement = movement
+        self.curMovement = movement
         self.cost = cost
+        self.size = size
 
-    
+class Soldier(Troop):
+    def __init__(self):
+        super().__init__(attack = 10, health = 35, movement = 5, size = 5,
+            cost = ("gold", 50))
+        self.name = "Soldier"
+
+class Regiment():
+    def __init__(self, troops):
+        self.troops = troops
+
+    def getCurMovement(self):
+        curMovement = self.troops[0].curMovement
+        for troop in self.troops:
+            if troop.curMovement < curMovement:
+                curMovement = troop.curMovement
+        return curMovement
+
+    def getSize(self):
+        size = 0
+        for troop in self.troops:
+            size += troop.size
+        return size
+
+    # merges current regiment to regiment at final destination if one exist
+    # returns new conjoioned regiment
+    def merge(self, other):
+        if other == None:
+            return self
+        else:
+            return Regiment(other.troops + self.troops)
+
+    def move(self, startCord, finishCord, buildings):
+        path = self.movePath(startCord, finishCord, buildings)
+        curRoom = None
+        for roomCords in path:
+            curRoom = buildings[roomCords[0]][roomCords[1]]
+            for troop in self.troops:
+                troop.curMovement -= 1
+            if self.getCurMovement() <= len(path):
+                break
+            if curRoom.enemyTroops.size >= self.size:
+                break
+        curRoom.allyTroops = self.merge(curRoom.allyTroops)
 
     # https://www.geeksforgeeks.org/a-search-algorithm/
-    def move(self, startCord, finishCord, buildings):
-        openList = {startCord: 0}
-        closedList = {}
+    def movePath(self, startCord, finishCord, buildings):
+        openDict = {startCord: 0}
+        closedDict = {}
 
         def manhattanDist(cord1, cord2):
             return abs(cord1[0] - cord2[0]) + abs(cord1[1] - cord2[1])
         
-        while not len(openList) == 0:
+        while not len(openDict) == 0:
 
             # find elm with smallest manhattanDist and remove from openList
             smallestCord = (0,0)
             smallestValue = len(buildings)**2
-            for key in openList:
-                if openList[key] < smallestValue:
+            for key in openDict:
+                if openDict[key] < smallestValue:
                     smallestCord = key
-                    smallestValue = openList[key]
+                    smallestValue = openDict[key]
 
             curCord = smallestCord
             curValue = smallestValue
-            del openList[curCord]
+            del openDict[curCord]
             possibleMoves = [(0,1), (0,-1), (1,0), (-1,0)]
             for move in possibleMoves:
                 newCord = (curCord[0] + move[0], curCord[1] + move[1])
@@ -151,46 +201,51 @@ class Troop():
                 if buildings[newCord[0]][newCord[1]] == None:
                     continue
                 if newCord == finishCord:
-                    return closedList
+                    return list(closedDict.keys())
                 newValue = (manhattanDist(newCord, curCord) + 
                                 manhattanDist(newCord, finishCord))
 
-                if newCord in openList:
-                    if openList[newCord] <= newValue:
+                if newCord in openDict:
+                    if openDict[newCord] <= newValue:
                         continue
                         
-                if newCord in closedList:
-                    if closedList[newCord] <= newValue:
+                if newCord in closedDict:
+                    if closedDict[newCord] <= newValue:
                         continue
                 
 
-                openList[newCord] = newValue
+                openDict[newCord] = newValue
 
-            closedList[curCord] = curValue
-
+            closedDict[curCord] = curValue
+        print("movePath is broken")
         return False     
 
-class Soldier(Troop):
+
+class Trap():
     def __init__(self):
-        super().__init__(attack = 10, health = 35, movement = 1,
-            cost = ("gold", 50))
+        pass
 
-class Regiment(Troop):
-    def __init__(self, troops):
-        self.troops = troops
-
-
+class Bomb(Trap):
+    def __init__(self):
+        self.cost = ("gold", 10)
+        self.name = "Bomb"
 
 gus = Player()
-gus.purchase((1,2), GoldMine(3))
-gus.purchase((1,3), GoldMine(4))
-gus.purchase((1,4), GoldMine(5))
-gus.purchase((2,4), GoldMine(6))
-gus.purchase((3,4), GoldMine(7))
-gus.purchase((3,3), GoldMine(8))
-gus.purchase((3,2), GoldMine(9))
+gus.purchase((1,2), GoldMine())
+gus.purchase((1,3), GoldMine())
+gus.purchase((1,4), GoldMine())
+gus.purchase((2,4), GoldMine())
+gus.purchase((3,4), GoldMine())
+gus.purchase((3,3), GoldMine())
+gus.purchase((3,2), GoldMine())
 
-gus.printBuildings()
+gus.buildings[1][1].allyTroops = Regiment([Soldier()])
+linos = Regiment([Soldier(), Soldier()])
 
-gus.buildings[1][1].allyTroops.append(Soldier())
-print(gus.buildings[1][1].allyTroops[0].move((1,1),(3,2),gus.buildings))
+gus.buildings[1][1].allyTroops = gus.buildings[1][1].allyTroops.merge(linos)
+
+print(gus.buildings[1][1].allyTroops.troops)
+# gus.printBuildings()
+
+# gus.buildings[1][1].allyTroops = Regiment([Soldier()])
+# print(gus.buildings[1][1].allyTroops.movePath((1,1),(3,2),gus.buildings))
