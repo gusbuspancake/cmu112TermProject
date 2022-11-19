@@ -3,6 +3,32 @@
 
 from cmu_112_graphics import *
 
+class Game():
+    def __init__(self, player1, player2):
+        self.curAlly = player1
+        self.curEnemy = player2
+        self.turnCount = 2
+
+    def endTurn(self):
+        for building in self.curAlly.buildings:
+            if building == None:
+                continue
+            if type(building) == GoldMine:
+                self.curAlly.resources["gold"] += 50
+            if type(building) == Barracks:
+                building.curAlly.madeTroopThisTurn = False
+            if type(building) == Factory:
+                building.curAlly.madeTrapThisTurn = False
+            if not building.allyRegiment == None:
+                for troop in building.allyRegiment.troops:
+                    troop.curMovement = troop.maxMovement
+        for building in self.curEnemy.buildings:
+            if building == None:
+                continue
+            if not building.enemyRegiment == None:
+                for troop in building.enemyRegiment.troops:
+                    troop.curMovement = troop.maxMovement
+        self.curAlly, self.curEnemy = self.curEnemy, self.curAlly
 
 class Player():
     def __init__(self):
@@ -14,11 +40,6 @@ class Player():
     def printBuildings(self):
         for row in self.buildings:
             print(row)  
-
-    def endTurn(self):
-        for building in self.buildings:
-            if type(building) == GoldMine:
-                self.resources["gold"] += 50
 
     # return a list of tuples of all available spaces to build
     def getConstructionZones(self):
@@ -218,6 +239,7 @@ class Regiment():
     def move(self, startCord, finishCord, buildings):
         path = self.movePath(startCord, finishCord, buildings)
         curRoom = buildings[startCord[0]][startCord[1]]
+        # might delete this later
         if self.onAllySide:
             curRoom.allyRegiment = None
         else:
