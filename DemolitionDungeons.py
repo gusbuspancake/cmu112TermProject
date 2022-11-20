@@ -3,6 +3,32 @@
 
 from cmu_112_graphics import *
 
+# https://docs.python.org/3/library/pickle.html
+import pickle
+
+# https://www.geeksforgeeks.org/python-list-files-in-a-directory/
+import os
+
+class Client():
+    def __init__(self):
+        pass
+
+    def getSaves(self):
+        path = "saves/"
+        files = os.listdir(path)
+        return files
+
+    def saveGame(self, game, fileName):
+        file = open(fileName, "wb")
+        pickle.dump(game, file)
+        file.close()
+
+    def loadGame(self, fileName):
+        file = open("saves/" + fileName, "rb")
+        game = pickle.load(file)
+        file.close()
+        return game
+
 class Game():
     def __init__(self, player1, player2):
         self.curAlly = player1
@@ -390,3 +416,17 @@ class Bomb(Trap):
         regiment.cleanOutDead(room)
         room.traps.remove(self)
 
+def appStarted(app):
+    app.counter = 0
+
+def keyPressed(app, event):
+    app.counter += 1
+
+def timerFired(app):
+    pass
+
+def redrawAll(app, canvas):
+    canvas.create_text(app.width/2, app.height/2,
+                       text=f'{app.counter} keypresses',
+                       font='Arial 30 bold',
+                       fill='black')
