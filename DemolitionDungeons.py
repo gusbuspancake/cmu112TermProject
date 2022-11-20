@@ -10,24 +10,28 @@ class Game():
         self.turnCount = 2
 
     def endTurn(self):
-        for building in self.curAlly.buildings:
-            if building == None:
-                continue
-            if type(building) == GoldMine:
-                self.curAlly.resources["gold"] += 50
-            if type(building) == Barracks:
-                building.curAlly.madeTroopThisTurn = False
-            if type(building) == Factory:
-                building.curAlly.madeTrapThisTurn = False
-            if not building.allyRegiment == None:
-                for troop in building.allyRegiment.troops:
-                    troop.curMovement = troop.maxMovement
-        for building in self.curEnemy.buildings:
-            if building == None:
-                continue
-            if not building.enemyRegiment == None:
-                for troop in building.enemyRegiment.troops:
-                    troop.curMovement = troop.maxMovement
+        for row in self.curAlly.buildings:
+            for building in row:
+                if building == None:
+                    continue
+                if type(building) == GoldMine:
+                    self.curAlly.resources[building.profit[0]] += (
+                        building.profit[1])
+                elif type(building) == Barracks:
+                    building.madeTroopThisTurn = False
+                elif type(building) == Factory:
+                    building.madeTrapThisTurn = False
+                if not building.allyRegiment == None:
+                    for troop in building.allyRegiment.troops:
+                        troop.curMovement = troop.maxMovement
+        for row in self.curEnemy.buildings:
+            for building in row:
+                if building == None:
+                    continue
+                if not building.enemyRegiment == None:
+                    for troop in building.enemyRegiment.troops:
+                        troop.curMovement = troop.maxMovement
+        self.turnCount += 1
         self.curAlly, self.curEnemy = self.curEnemy, self.curAlly
 
 class Player():
@@ -103,7 +107,65 @@ class Player():
         if zoneIndex[1] == len(self.buildings[0]) - 1:
             for row in self.buildings:
                 row.append(None)
-     
+
+    def warpHome(self, enemyPlayer):
+        selfEntrance = None
+        enemyEnterance = None
+
+        for row in self.buildings:
+            for building in row:
+                if type(building) == Entrance:
+                    selfEntrance = building
+                    break
+        
+        for row in enemyPlayer.buildings:
+            for building in row:
+                if type(building) == Entrance:
+                    enemyEntrance = building
+                    break
+        
+        tempReg = []
+        for troop in enemyEntrance.enemyRegiment.troops:
+            if troop.curMovement == troop.maxMovement:
+                troop.curMovement = 0
+                tempReg.append(troop)
+                enemyEntrance.enemyRegiment.troops.remove(troop)
+        
+        if len(enemyEntrance.enemyRegiment.troops) == 0:
+            enemyEntrance.enemyRegiment == None
+
+        allyInHomeBase = selfEntrance.allyRegiment
+        allyInHomeBase = Regiment(tempReg).merge(allyInHomeBase) 
+
+    def warpToEnemy(self, enemyPlayer):
+        selfEntrance = None
+        enemyEnterance = None
+
+        for row in self.buildings:
+            for building in row:
+                if type(building) == Entrance:
+                    selfEntrance = building
+                    break
+        
+        for row in enemyPlayer.buildings:
+            for building in row:
+                if type(building) == Entrance:
+                    enemyEntrance = building
+                    break
+        
+        tempReg = []
+        for troop in selfEntrance.allyRegiment.troops:
+            if troop.curMovement == troop.maxMovement:
+                troop.curMovement = 0
+                tempReg.append(troop)
+                selfEntrance.allyRegiment.troops.remove(troop)
+        
+        if len(selfEntrance.allyRegiment.troops) == 0:
+            selfEntrance.allyRegiment == None
+
+        allyInEnemyBase = enemyEntrance.enemyRegiment
+        enemyEntrance.enemyRegiment = Regiment(tempReg).merge(allyInEnemyBase)
+                    
 class Building():
     def __init__(self):
         self.allyRegiment = None
@@ -124,6 +186,7 @@ class GoldMine(Building):
         super().__init__()
         self.name = "GdMn"
         self.cost = ("gold", 200)
+        self.profit = ("gold", 50)
 
 class Barracks(Building):
     def __init__(self):
@@ -270,7 +333,6 @@ class Regiment():
             return abs(cord1[0] - cord2[0]) + abs(cord1[1] - cord2[1])
         
         while not len(openDict) == 0:
-            
             # find elm with smallest manhattanDist and remove from openList
             smallestCord = (0,0)
             smallestValue = len(buildings)**2
@@ -328,21 +390,3 @@ class Bomb(Trap):
         regiment.cleanOutDead(room)
         room.traps.remove(self)
 
-gus = Player()
-gus.purchase((1,2), GoldMine())
-gus.purchase((1,3), GoldMine())
-gus.purchase((1,4), Factory())
-gus.purchase((2,4), Barracks())
-gus.purchase((3,4), GoldMine())
-gus.purchase((3,3), GoldMine())
-gus.purchase((3,2), GoldMine())
-
-gus.printBuildings()
-
-gus.buildings[2][4].buildTroop(gus.resources, Soldier())
-# gus.buildings[2][4].buildTroop(gus.resources, Soldier())
-# gus.buildings[2][4].buildTroop(gus.resources, Soldier())
-print(gus.buildings[2][4].allyRegiment.troops)
-gus.buildings[2][4].allyRegiment.troops[0].curHealth = 0
-gus.buildings[2][4].allyRegiment.cleanOutDead(gus.buildings[2][4])
-print(gus.buildings[2][4].allyRegiment)
