@@ -61,9 +61,16 @@ class Game():
         self.curAlly, self.curEnemy = self.curEnemy, self.curAlly
 
 class Player():
-    def __init__(self):
-        self.buildings = [[None,None,None],[None,None,None],[None,None,None]]
-        self.buildings[1][1] = Entrance()
+    def __init__(self, name):
+        self.name = name
+        self.buildings = []
+        for i in range(11):
+            temp = []
+            for j in range(11):
+                temp.append(None)
+            self.buildings.append(temp)
+        
+        self.buildings[5][5] = Entrance()
         self.resources = {"gold":10000000}
 
     # helper function for debugging before GUI
@@ -205,19 +212,20 @@ class Building():
 class Entrance(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Entr"
+        self.name = "Entrance"
 
 class GoldMine(Building):
     def __init__(self):
         super().__init__()
-        self.name = "GdMn"
+        self.name = "GoldMine"
+        # "assets/goldMine.png"
         self.cost = ("gold", 200)
         self.profit = ("gold", 50)
 
 class Barracks(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Brck"
+        self.name = "Barracks"
         self.cost = ("gold", 100)
         self.madeTroopThisTurn = False
 
@@ -236,7 +244,7 @@ class Barracks(Building):
 class Factory(Building):
     def __init__(self):
         super().__init__()
-        self.name = "Fcty"
+        self.name = "Factory"
         self.cost = ("gold", 100)
         self.madeTrapThisTurn = False
 
@@ -417,16 +425,90 @@ class Bomb(Trap):
         room.traps.remove(self)
 
 def appStarted(app):
-    app.counter = 0
+    app.client = Client()
+
+    # scale is the n by n pixel dimmensions of one room
+    app.scale = 50
+
+    # position of top left corner of the canvas in the map of buildings
+    app.curRow = 0
+    app.curCol = 0
+
+    app.images = loadImages(app)
+
+    # add save and load segment
+    game = makeNewGame(app)
+    app.curBoard = game.curAlly.buildings
+
+def loadImages(app):
+    result = {}
+    result["GoldMine"] = app.loadImage("assets/goldMine.jpeg")
+    result["Entrance"] = app.loadImage("assets/entrance.jpeg")
+    result["Empty"] = app.loadImage("assets/none.png")
+    return result
+
+def makeNewGame(app):
+    # player1Name = app.getUserInput("Enter Player One Name")
+    player1 = Player("gus")
+    # player2Name = app.getUserInput("Enter Player Two Name")
+    player2 = Player("sug")
+
+    return Game(player1, player2)
 
 def keyPressed(app, event):
-    app.counter += 1
+    if event.key == "Down":
+        app.curRow -= app.scale/100
+        if app.curRow < 0:
+            app.curRow = 0
+    if event.key == "Up":
+        app.curRow += app.scale/100
+        if app.curRow > len(app.curBoard) - 1:
+            app.curRow = len(app.curBoard) - 1
+    if event.key == "Right":
+        app.curCol -= app.scale/100
+        if app.curCol < 0:
+            app.curCol = 0
+    if event.key == "Left":
+        app.curCol += app.scale/100
+        if app.curCol > len(app.curBoard[0]) - 1:
+            app.curCol = len(app.curBoard[0]) - 1
+    if event.key == "p":
+        app.scale += 10
+        if app.scale > 200:
+            app.scale = 200
+    if event.key == "o":
+        app.scale -= 10
+        if app.scale < 10:
+            app.scale = 10
+
+def mouseDragged(app, event):
+    pass
 
 def timerFired(app):
     pass
 
+def getCanvasCorner(app, canvas):
+    pass
+
+def drawRoom(app, canvas, row, col, room):
+    smallSide = min(app.width, app.height)
+    unit = smallSide/app.scale
+    if room == None:
+        roomImage = app.images["Empty"]
+    else:
+        roomImage = app.images[room.name]
+    imageWidth, imageHeight = roomImage.size
+    roomImage = app.scaleImage(roomImage, app.scale/imageWidth)
+    x = (col + app.curCol) * app.scale
+    y = (row + app.curRow) * app.scale
+    canvas.create_image(x, y, image=ImageTk.PhotoImage(roomImage))
+
+def drawMap(app, canvas):
+    for row in range(len(app.curBoard)):
+        for col in range(len(app.curBoard[0])):
+            drawRoom(app, canvas, row, col, app.curBoard[row][col])
+
 def redrawAll(app, canvas):
-    canvas.create_text(app.width/2, app.height/2,
-                       text=f'{app.counter} keypresses',
-                       font='Arial 30 bold',
-                       fill='black')
+    drawMap(app, canvas)
+
+runApp(width = 800, height = 800)
