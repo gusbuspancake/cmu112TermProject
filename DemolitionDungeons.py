@@ -51,7 +51,7 @@ class Player():
             self.buildings.append(temp)
         
         self.buildings[5][5] = Entrance()
-        self.resources = {"gold":10000000}
+        self.resources = {"Gold":10000000}
 
     # helper function for debugging before GUI
     def printBuildings(self):
@@ -105,7 +105,7 @@ class Player():
         return not currResourceType < building.cost[1]
     
     # zoneIndex is tuple of (row,col) in buildings
-    # pruchaseBuilding is the building to pruchase
+    # building is the building to pruchase
     def purchase(self, zoneIndex, building):
         # can you purchase this building?
         if not self.canPurchase(building):
@@ -218,14 +218,14 @@ class GoldMine(Building):
         super().__init__()
         self.name = "GoldMine"
         # "assets/goldMine.png"
-        self.cost = ("gold", 200)
-        self.profit = ("gold", 50)
+        self.cost = ("Gold", 200)
+        self.profit = ("Gold", 50)
 
 class Barracks(Building):
     def __init__(self):
         super().__init__()
         self.name = "Barracks"
-        self.cost = ("gold", 100)
+        self.cost = ("Gold", 100)
         self.madeTroopThisTurn = False
 
     def buildTroop(self, resources, troop):
@@ -244,7 +244,7 @@ class Factory(Building):
     def __init__(self):
         super().__init__()
         self.name = "Factory"
-        self.cost = ("gold", 100)
+        self.cost = ("Gold", 100)
         self.madeTrapThisTurn = False
 
     def buildTrap(self, resources, trap):
@@ -259,7 +259,7 @@ class Factory(Building):
         resources[trap.cost[0]] -= trap.cost[1]  
 
 class Troop():
-    def __init__(self, attack, health, movement, size, cost = ("gold", 0)):
+    def __init__(self, attack, health, movement, size, cost = ("Gold", 0)):
         self.attack = attack
         self.maxHealth = health
         self.curHealth = health
@@ -274,7 +274,7 @@ class Troop():
 class Soldier(Troop):
     def __init__(self):
         super().__init__(attack = 10, health = 35, movement = 5, size = 5,
-            cost = ("gold", 50))
+            cost = ("Gold", 50))
         self.name = "Soldier"
 
     # soldiers attack the enemy troop with the largest size in the same room
@@ -414,7 +414,7 @@ class Trap():
 
 class Bomb(Trap):
     def __init__(self):
-        self.cost = ("gold", 10)
+        self.cost = ("Gold", 10)
         self.name = "Bomb"
     
     def trip(self, buildings, roomCords, room, regiment):
@@ -487,6 +487,15 @@ def loadImages(app):
     #%2Fsquare&psig=AOvVaw3p3TqKymy4hBryA073nkcs&ust=1669686202053000&source=im
     #ages&cd=vfe&ved=0CA8QjRxqFwoTCMDivPrfz_sCFQAAAAAdAAAAABAD
     result["Empty"] = app.loadImage("assets/none.png")
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.flaticon.com%2Ffree-
+    #icon%2Fbarracks_3016501&psig=AOvVaw0L6R8z3SDMCLmx9qWnZ60g&ust=166975403737
+    #3000&source=images&cd=vfe&ved=0CA8QjRxqGAoTCPCR0uPc0fsCFQAAAAAdAAAAABDpAg
+    result["Barracks"] = app.loadImage("assets/barracks.png")
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.nicepng.com%2Fourpic
+    #%2Fu2y3q8u2e6o0i1o0_environmental-clipart-green-brain-manufacturing-clipar
+    #t-png%2F&psig=AOvVaw3ureIqIOTmHA_mC2SWgYU0&ust=1669754191901000&source=ima
+    #ges&cd=vfe&ved=0CA8QjRxqFwoTCMCZzavd0fsCFQAAAAAdAAAAABAD
+    result["Factory"] = app.loadImage("assets/factory.jpeg")
     return result
 
 def loadGameUI(app):
@@ -504,6 +513,7 @@ def makeNewGame(app):
     return Game(player1, player2)
 
 def keyPressed(app, event):
+    app.UI = loadGameUI(app)
     if event.key == "Down":
         app.curRow -= app.scale/100
         if app.curRow < 0:
@@ -529,39 +539,39 @@ def keyPressed(app, event):
         if app.scale < 10:
             app.scale = 10
 
-def purcahseBuildingsList(app):
-    app.UI = loadGameUI(app)
+def purcahseBuildingsList(app, row, col):
+    app.UI.append(Button(20, 60, 100, 100, "GoldMine",
+        lambda: app.game.curAlly.purchase((row,col), GoldMine())))
+    app.UI.append(Button(20, 120, 100, 160, "Barracks",
+        lambda: app.game.curAlly.purchase((row,col), Barracks())))
+    app.UI.append(Button(20, 180, 100, 220, "Factory",
+        lambda: app.game.curAlly.purchase((row,col), Factory())))
 
 def mousePressed(app, event):
     for button in app.UI:
         if button.checkClicked(event.x, event.y):
+            app.UI = loadGameUI(app)
             button.onClick()
             update(app)
             return
-
-    app.UI = loadGameUI(app)
 
     boardCol = round((event.x - (app.curCol * app.scale)) / app.scale)
     boardRow = round((event.y - (app.curRow * app.scale)) / app.scale)
     if (boardCol >= 0 and boardCol < len(app.curBoard[0]) and
         boardRow >= 0 and boardRow < len(app.curBoard)):
-        
+        app.UI = loadGameUI(app)
         if app.game.curAlly.isContructionZone(boardRow, boardCol):
-            x0 = (boardCol * app.scale) - app.scale/2
-            y0 = (boardRow * app.scale) - app.scale/2
-            app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "$$$?",
-                lambda: purcahseBuildingsList(app)))
+            x0 = ((boardCol + app.curCol) * app.scale) - app.scale/2
+            y0 = ((boardRow + app.curRow) * app.scale) - app.scale/2
+            app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "Buy?",
+                lambda: purcahseBuildingsList(app, boardRow, boardCol)))
             return
 
 def mouseDragged(app, event):
     pass
 
 def update(app):
-    app.UI = loadGameUI(app)
     app.curBoard = app.game.curAlly.buildings
-
-def timerFired(app):
-    pass
 
 def drawRoom(app, canvas, row, col, room):
     smallSide = min(app.width, app.height)
@@ -588,8 +598,17 @@ def drawUI(app, canvas):
         canvas.create_text(button.x0 + (button.x1 - button.x0)/2, (button.y0 + 
             (button.y1 - button.y0)/2), text = button.text, font = app.font)
 
+def drawResources(app, canvas):
+    result = app.game.curAlly.name
+    result += f" Turn {app.game.turnCount // 2}   "
+    for key in app.game.curAlly.resources:
+        result += f"{key} : {app.game.curAlly.resources[key]}   "
+    canvas.create_rectangle(0, 0, app.width, 50, fill = "gray", width = 0)
+    canvas.create_text(app.width / 2, 25, text = result, font = app.font)
+
 def redrawAll(app, canvas):
     drawMap(app, canvas)
     drawUI(app, canvas)
+    drawResources(app, canvas)
 
 runApp(width = 800, height = 800)
