@@ -9,26 +9,6 @@ import pickle
 # https://www.geeksforgeeks.org/python-list-files-in-a-directory/
 import os
 
-class Client():
-    def __init__(self):
-        pass
-
-    def getSaves(self):
-        path = "saves/"
-        files = os.listdir(path)
-        return files
-
-    def saveGame(self, game, fileName):
-        file = open(fileName, "wb")
-        pickle.dump(game, file)
-        file.close()
-
-    def loadGame(self, fileName):
-        file = open("saves/" + fileName, "rb")
-        game = pickle.load(file)
-        file.close()
-        return game
-
 class Game():
     def __init__(self, player1, player2):
         self.curAlly = player1
@@ -77,6 +57,25 @@ class Player():
     def printBuildings(self):
         for row in self.buildings:
             print(row)  
+
+    def isContructionZone(self, row, col):
+        building = self.buildings[row][col]
+        if building == None:
+
+            # checks orthoganol spaces to see if they are buildings
+            # https://www.geeksforgeeks.org/python-inner-functions/
+            def checkNone(buildings, row, col):
+                if (row<0 or col<0 or row>=len(buildings)
+                    or col>=len(buildings[0])):
+                    return False
+                return buildings[row][col] != None
+
+            if (checkNone(self.buildings, row+1, col) or 
+                checkNone(self.buildings, row-1, col) or
+                checkNone(self.buildings, row, col+1) or
+                checkNone(self.buildings, row, col-1)):
+                return True
+        return False
 
     # return a list of tuples of all available spaces to build
     def getConstructionZones(self):
@@ -424,8 +423,22 @@ class Bomb(Trap):
         regiment.cleanOutDead(room)
         room.traps.remove(self)
 
+class Button():
+    def __init__(self, x0, y0, x1, y1, text, action):
+        self.x0 = x0
+        self.y0 = y0
+        self.x1 = x1
+        self.y1 = y1
+        self.text = text
+        self.action = action
+    
+    def checkClicked(self, mouseX, mouseY):
+        return self.x0 <= mouseX <= self.x1 and self.y0 <= mouseY <= self.y1
+
+    def onClick(self):
+        self.action()
+
 def appStarted(app):
-    app.client = Client()
 
     # scale is the n by n pixel dimmensions of one room
     app.scale = 50
@@ -433,18 +446,53 @@ def appStarted(app):
     # position of top left corner of the canvas in the map of buildings
     app.curRow = 0
     app.curCol = 0
-
-    app.images = loadImages(app)
+    app.font = "Century 14 bold"
 
     # add save and load segment
-    game = makeNewGame(app)
-    app.curBoard = game.curAlly.buildings
+    app.game = makeNewGame(app)
+
+    app.images = loadImages(app)
+    app.UI = loadGameUI(app)
+    app.curBoard = app.game.curAlly.buildings
+
+def getSaves():
+        path = "saves/"
+        files = os.listdir(path)
+        return files
+
+def saveGame(game, fileName):
+    file = open(fileName, "wb")
+    pickle.dump(game, file)
+    file.close()
+
+def loadGame(fileName):
+    file = open("saves/" + fileName, "rb")
+    game = pickle.load(file)
+    file.close()
+    return game    
 
 def loadImages(app):
     result = {}
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.pngitem.com%2Fmiddle
+    #%2FimJJomh_gold-mine-clipart-hd-png-download%2F&psig=AOvVaw0mTltkyz9li1IQg
+    #KUujKYi&ust=1669686072855000&source=images&cd=vfe&ved=0CA8QjRxqFwoTCJCFy
+    #rzfz_sCFQAAAAAdAAAAABAD
     result["GoldMine"] = app.loadImage("assets/goldMine.jpeg")
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.vectorstock.com%2Fro
+    #yalty-free-vector%2Fcartoon-mine-entrance-retro-tunnel-old-mine-vector-331
+    #46747&psig=AOvVaw3wiEwEOKoBuPDwC3X5n2q9&ust=1669686129161000&source=images
+    #&cd=vfe&ved=0CA8QjRxqFwoTCOi0k93fz_sCFQAAAAAdAAAAABAD
     result["Entrance"] = app.loadImage("assets/entrance.jpeg")
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fen.wiktionary.org%2Fwiki
+    #%2Fsquare&psig=AOvVaw3p3TqKymy4hBryA073nkcs&ust=1669686202053000&source=im
+    #ages&cd=vfe&ved=0CA8QjRxqFwoTCMDivPrfz_sCFQAAAAAdAAAAABAD
     result["Empty"] = app.loadImage("assets/none.png")
+    return result
+
+def loadGameUI(app):
+    result = []
+    result.append(Button(10, app.height - 50, 90, app.height - 10,
+                        "End Turn", app.game.endTurn))
     return result
 
 def makeNewGame(app):
@@ -481,13 +529,38 @@ def keyPressed(app, event):
         if app.scale < 10:
             app.scale = 10
 
+def purcahseBuildingsList(app):
+    app.UI = loadGameUI(app)
+
+def mousePressed(app, event):
+    for button in app.UI:
+        if button.checkClicked(event.x, event.y):
+            button.onClick()
+            update(app)
+            return
+
+    app.UI = loadGameUI(app)
+
+    boardCol = round((event.x - (app.curCol * app.scale)) / app.scale)
+    boardRow = round((event.y - (app.curRow * app.scale)) / app.scale)
+    if (boardCol >= 0 and boardCol < len(app.curBoard[0]) and
+        boardRow >= 0 and boardRow < len(app.curBoard)):
+        
+        if app.game.curAlly.isContructionZone(boardRow, boardCol):
+            x0 = (boardCol * app.scale) - app.scale/2
+            y0 = (boardRow * app.scale) - app.scale/2
+            app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "$$$?",
+                lambda: purcahseBuildingsList(app)))
+            return
+
 def mouseDragged(app, event):
     pass
 
-def timerFired(app):
-    pass
+def update(app):
+    app.UI = loadGameUI(app)
+    app.curBoard = app.game.curAlly.buildings
 
-def getCanvasCorner(app, canvas):
+def timerFired(app):
     pass
 
 def drawRoom(app, canvas, row, col, room):
@@ -507,8 +580,16 @@ def drawMap(app, canvas):
     for row in range(len(app.curBoard)):
         for col in range(len(app.curBoard[0])):
             drawRoom(app, canvas, row, col, app.curBoard[row][col])
+        
+def drawUI(app, canvas):
+    for button in app.UI:
+        canvas.create_rectangle(button.x0, button.y0, button.x1, button.y1,
+        fill = "gray", outline = "black",width = 5)
+        canvas.create_text(button.x0 + (button.x1 - button.x0)/2, (button.y0 + 
+            (button.y1 - button.y0)/2), text = button.text, font = app.font)
 
 def redrawAll(app, canvas):
     drawMap(app, canvas)
+    drawUI(app, canvas)
 
 runApp(width = 800, height = 800)
