@@ -269,7 +269,8 @@ class Troop():
         self.size = size
     
     def __repr__(self):
-        return f'{self.name}'
+        name=f"{self.name}: {self.attack}, {self.curHealth}, {self.curMovement}"
+        return name
 
 class Soldier(Troop):
     def __init__(self):
@@ -424,7 +425,7 @@ class Bomb(Trap):
         room.traps.remove(self)
 
 class Button():
-    def __init__(self, x0, y0, x1, y1, text, action):
+    def __init__(self, x0, y0, x1, y1, text, action = None):
         self.x0 = x0
         self.y0 = y0
         self.x1 = x1
@@ -436,7 +437,8 @@ class Button():
         return self.x0 <= mouseX <= self.x1 and self.y0 <= mouseY <= self.y1
 
     def onClick(self):
-        self.action()
+        if self.action != None:
+            self.action()
 
 def appStarted(app):
 
@@ -450,6 +452,7 @@ def appStarted(app):
 
     # add save and load segment
     app.game = makeNewGame(app)
+    app.sameSide = True
 
     app.images = loadImages(app)
     app.UI = loadGameUI(app)
@@ -502,7 +505,18 @@ def loadGameUI(app):
     result = []
     result.append(Button(10, app.height - 50, 90, app.height - 10,
                         "End Turn", app.game.endTurn))
+    if app.sameSide:
+        result.append(Button(app.width - 120, app.height - 50, app.width - 10,
+                    app.height - 10, "Go To Enemy", lambda: switchSides(app)))
+    else:
+        result.append(Button(app.width - 120, app.height - 50, app.width - 10,
+                    app.height - 10, "Return Home", lambda: switchSides(app)))
     return result
+
+def switchSides(app):
+    app.sameSide = not app.sameSide
+    app.UI = loadGameUI(app)
+    update(app)
 
 def makeNewGame(app):
     # player1Name = app.getUserInput("Enter Player One Name")
@@ -547,6 +561,33 @@ def purcahseBuildingsList(app, row, col):
     app.UI.append(Button(20, 180, 100, 220, "Factory",
         lambda: app.game.curAlly.purchase((row,col), Factory())))
 
+def purchaseTroopList(app, row, col):
+    dude = app.game.curAlly
+    app.UI.append(Button(20, 60, 100, 100, "Soldier",
+        lambda: dude.buildings[row][col].buildTroop(dude.resources, Soldier())))
+
+def showInsides(app, room):
+    allyTroops = "Allies: "
+    enemyTroops = "Enemies: "
+    traps = "Traps: "
+    if room.allyRegiment != None:
+        for troop in room.allyRegiment.troops:
+            allyTroops += f"{troop}\n"
+    if room.enemyRegiment != None:
+        for troop in room.enemyRegiment.troops:
+            enemyTroops += f"{troop}\n"
+    for trap in room.traps:
+        traps += f"{trap.name}\n"
+    if allyTroops == "Allies: ":
+        allyTroops += "None \n"
+    if enemyTroops == "Enemies: ":
+        enemyTroops += "None \n"
+    if traps == "Traps: ":
+        traps += "None \n"
+    info = allyTroops + enemyTroops + traps
+
+    app.UI.append(Button(app.width-210, 60, app.width-10, 360, info))
+
 def mousePressed(app, event):
     for button in app.UI:
         if button.checkClicked(event.x, event.y):
@@ -560,18 +601,29 @@ def mousePressed(app, event):
     if (boardCol >= 0 and boardCol < len(app.curBoard[0]) and
         boardRow >= 0 and boardRow < len(app.curBoard)):
         app.UI = loadGameUI(app)
-        if app.game.curAlly.isContructionZone(boardRow, boardCol):
+        if (app.sameSide and 
+            app.game.curAlly.isContructionZone(boardRow, boardCol)):
             x0 = ((boardCol + app.curCol) * app.scale) - app.scale/2
             y0 = ((boardRow + app.curRow) * app.scale) - app.scale/2
             app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "Buy?",
                 lambda: purcahseBuildingsList(app, boardRow, boardCol)))
             return
-
-def mouseDragged(app, event):
-    pass
+        myRoom = app.game.curAlly.buildings[boardRow][boardCol]
+        theirRoom = app.game.curEnemy.buildings[boardRow][boardCol]
+        if (app.sameSide and myRoom != None):
+            myRoom = app.game.curAlly.buildings[boardRow][boardCol]
+            showInsides(app, myRoom)
+            if type(myRoom) == Barracks:
+                if not myRoom.madeTroopThisTurn:
+                    purchaseTroopList(app, boardRow, boardCol)
+                else:
+                    app.UI.append(Button(20, 60, 100, 100, "Used"))
 
 def update(app):
-    app.curBoard = app.game.curAlly.buildings
+    if app.sameSide:
+        app.curBoard = app.game.curAlly.buildings
+    else:
+        app.curBoard = app.game.curEnemy.buildings
 
 def drawRoom(app, canvas, row, col, room):
     smallSide = min(app.width, app.height)
