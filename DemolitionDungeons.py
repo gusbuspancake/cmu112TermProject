@@ -197,7 +197,14 @@ class Player():
 
         allyInEnemyBase = enemyEntrance.enemyRegiment
         enemyEntrance.enemyRegiment = Regiment(tempReg).merge(allyInEnemyBase)
-                    
+    
+    def checkRuins(self):
+        for row in self.buildings:
+            for building in row:
+                if not type(building) == Ruin:
+                    if building.health <= 0:
+                        building = Ruin()
+
 class Building():
     def __init__(self):
         self.allyRegiment = None
@@ -207,6 +214,12 @@ class Building():
 
     def __repr__(self):
         return f'{self.name}'
+
+class Ruin(Building):
+    def __init__(self):
+        super().__init__()
+        self.name = "Ruin"
+        self.health = 0
 
 class Entrance(Building):
     def __init__(self):
@@ -264,7 +277,7 @@ class Troop():
         self.maxHealth = health
         self.curHealth = health
         self.maxMovement = movement
-        self.curMovement = movement
+        self.curMovement = 0
         self.cost = cost
         self.size = size
     
@@ -280,8 +293,6 @@ class Soldier(Troop):
 
     # soldiers attack the enemy troop with the largest size in the same room
     def attack(self, room, enemyRegiment):
-        if enemyRegiment == None:
-            return False
         biggestEnemy = None
         biggestEnemySize = -999
         for troop in enemyRegiment.troops:
@@ -313,6 +324,15 @@ class Regiment():
             size += troop.size
         return size
 
+    def attack(self, room, enemyRegiment):
+        if enemyRegiment == None:
+            if not self.onAllySide:
+                room.health -= self.attack
+            return False
+        
+        for troop in self.troops:
+            troop.attack(room, enemyRegiment)
+
     def cleanOutDead(self, room):
         for troop in self.troops:
             if troop.curHealth <= 0:
@@ -334,7 +354,10 @@ class Regiment():
             return Regiment(other.troops + self.troops, other.onAllySide)
 
     def move(self, startCord, finishCord, buildings):
+        if self.getCurMovement() == 0:
+            return
         path = self.movePath(startCord, finishCord, buildings)
+        path.pop(0)
         curRoom = buildings[startCord[0]][startCord[1]]
         # might delete this later
         if self.onAllySide:
@@ -405,7 +428,6 @@ class Regiment():
         print("movePath is broken")
         return False     
 
-
 class Trap():
     def __init__(self):
         pass
@@ -453,6 +475,7 @@ def appStarted(app):
     # add save and load segment
     app.game = makeNewGame(app)
     app.sameSide = True
+    app.troopMove = None
 
     app.images = loadImages(app)
     app.UI = loadGameUI(app)
@@ -499,6 +522,10 @@ def loadImages(app):
     #t-png%2F&psig=AOvVaw3ureIqIOTmHA_mC2SWgYU0&ust=1669754191901000&source=ima
     #ges&cd=vfe&ved=0CA8QjRxqFwoTCMCZzavd0fsCFQAAAAAdAAAAABAD
     result["Factory"] = app.loadImage("assets/factory.jpeg")
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.kindpng.com%2Ffree%2
+    #Fruins%2F&psig=AOvVaw1dmkCeCk4c5k-Qpa5DCsiP&ust=1669841646321000&source=im
+    #ages&cd=vfe&ved=0CA8QjRxqFwoTCLid0oOj1PsCFQAAAAAdAAAAABAD
+    result["Ruins"] = app.loadImage("assets/ruins.jpeg")
     return result
 
 def loadGameUI(app):
@@ -538,12 +565,12 @@ def keyPressed(app, event):
             app.curRow = len(app.curBoard) - 1
     if event.key == "Right":
         app.curCol -= app.scale/100
-        if app.curCol < 0:
-            app.curCol = 0
+        if app.curCol < 0 - len(app.curBoard[0])/2:
+            app.curCol = 0 - len(app.curBoard[0])/2
     if event.key == "Left":
         app.curCol += app.scale/100
-        if app.curCol > len(app.curBoard[0]) - 1:
-            app.curCol = len(app.curBoard[0]) - 1
+        if app.curCol > 1:
+            app.curCol = 1
     if event.key == "p":
         app.scale += 10
         if app.scale > 200:
@@ -561,12 +588,52 @@ def purcahseBuildingsList(app, row, col):
     app.UI.append(Button(20, 180, 100, 220, "Factory",
         lambda: app.game.curAlly.purchase((row,col), Factory())))
 
-def purchaseTroopList(app, row, col):
-    dude = app.game.curAlly
+def purchaseTroopList(app, room):
     app.UI.append(Button(20, 60, 100, 100, "Soldier",
-        lambda: dude.buildings[row][col].buildTroop(dude.resources, Soldier())))
+        lambda: room.buildTroop(app.game.curAlly.resources, Soldier())))
 
-def showInsides(app, room):
+def move(app, roomCords):
+    app.UI = loadGameUI(app)
+    app.UI.append(Button(20,60,120,120,"Select Room\nto Move to"))
+    app.troopMove = roomCords
+
+def attack(app, room):
+    if app.sameSide:
+        room.allyRegiment.attack(room, room.enemyRegiment)
+        app.game.allyPlayer.checkRuins()
+    else:
+        room.enemyRegiment.attack(room, room.allyRegiment)
+        app.game.enemyPlayer.checkRuins()
+
+def myRoomActions(app, room, roomCords):
+    if not room.allyRegiment == None:
+        app.UI.append(Button(20, 120, 100, 160, "Move",
+            lambda: move(app, roomCords)))
+        app.UI.append(Button(20, 180, 100, 220, "Attack!"))
+
+    if type(room) == Barracks:
+        if not room.madeTroopThisTurn:
+            app.UI.append(Button(20, 60, 100, 100, "Recruit", 
+                lambda: purchaseTroopList(app, room)))
+        else:
+            app.UI.append(Button(20, 60, 100, 100, "Used"))
+
+    if type(room) == Entrance and not room.allyRegiment == None:
+            app.UI.append(Button(20, 60, 100, 100, "Warp",
+            lambda: app.game.curAlly.warpToEnemy(app.game.curEnemy)))
+                
+
+def theirRoomActions(app, room, roomCords):
+    if not room.enemyRegiment == None:
+        app.UI.append(Button(20, 120, 100, 160, "Move",
+            lambda: move(app, roomCords)))
+        app.UI.append(Button(20, 180, 100, 220, "Attack!"))
+    
+    if type(room) == Entrance and not room.enemyRegiment == None:
+        app.UI.append(Button(20, 60, 100, 100, "Warp",
+            lambda: app.game.curAlly.warpHome(app.game.curEnemy)))
+
+def showMyInsides(app, room):
     allyTroops = "Allies: "
     enemyTroops = "Enemies: "
     traps = "Traps: "
@@ -578,6 +645,7 @@ def showInsides(app, room):
             enemyTroops += f"{troop}\n"
     for trap in room.traps:
         traps += f"{trap.name}\n"
+
     if allyTroops == "Allies: ":
         allyTroops += "None \n"
     if enemyTroops == "Enemies: ":
@@ -585,6 +653,24 @@ def showInsides(app, room):
     if traps == "Traps: ":
         traps += "None \n"
     info = allyTroops + enemyTroops + traps
+
+    app.UI.append(Button(app.width-210, 60, app.width-10, 360, info))
+
+def showTheirInsides(app, room):
+    allyTroops = "Allies: "
+    enemyTroops = "Enemies: "
+    if room.enemyRegiment != None:
+        for troop in room.enemyRegiment.troops:
+            allyTroops += f"{troop}\n"
+    if room.allyRegiment != None:
+        for troop in room.allyRegiment.troops:
+            enemyTroops += f"{troop}\n"
+    
+    if allyTroops == "Allies: ":
+        allyTroops += "None \n"
+    if enemyTroops == "Enemies: ":
+        enemyTroops += "None \n"
+    info = allyTroops + enemyTroops
 
     app.UI.append(Button(app.width-210, 60, app.width-10, 360, info))
 
@@ -610,14 +696,25 @@ def mousePressed(app, event):
             return
         myRoom = app.game.curAlly.buildings[boardRow][boardCol]
         theirRoom = app.game.curEnemy.buildings[boardRow][boardCol]
+        if (app.sameSide and not app.troopMove == None):
+            go = app.game.curAlly.buildings[app.troopMove[0]][app.troopMove[1]]
+            go.allyRegiment.move(app.troopMove, (boardRow, boardCol),
+                 app.game.curAlly.buildings)
+            update(app)
+            app.troopMove = None
+        elif (not app.sameSide and not app.troopMove == None):
+            go = app.game.curEnemy.buildings[app.troopMove[0]][app.troopMove[1]]
+            go.enemyRegiment.move(app.troopMove, (boardRow, boardCol),
+                 app.game.curEnemy.buildings)
+            update(app)
+            app.troopMove = None
+
         if (app.sameSide and myRoom != None):
-            myRoom = app.game.curAlly.buildings[boardRow][boardCol]
-            showInsides(app, myRoom)
-            if type(myRoom) == Barracks:
-                if not myRoom.madeTroopThisTurn:
-                    purchaseTroopList(app, boardRow, boardCol)
-                else:
-                    app.UI.append(Button(20, 60, 100, 100, "Used"))
+            myRoomActions(app, myRoom, (boardRow, boardCol))
+            showMyInsides(app, myRoom)
+        elif (not app.sameSide and theirRoom != None):
+            theirRoomActions(app, theirRoom, (boardRow, boardCol))
+            showTheirInsides(app, theirRoom)
 
 def update(app):
     if app.sameSide:
