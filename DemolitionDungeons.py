@@ -183,7 +183,8 @@ class Player():
     def checkRuins(self):
         for row in self.buildings:
             for building in row:
-                if not type(building) == Ruin and not building == None:
+                if (not type(building) == Ruin and not building == None and
+                    not type(building) == Entrance):
                     if building.health <= 0:
                         building = Ruin()
 
@@ -207,6 +208,7 @@ class Entrance(Building):
     def __init__(self):
         super().__init__()
         self.name = "Entrance"
+        self.health = 0
 
 class GoldMine(Building):
     def __init__(self):
@@ -242,14 +244,14 @@ class Factory(Building):
         self.cost = ("Gold", 100)
         self.madeTrapThisTurn = False
 
-    def buildTrap(self, resources, trap):
+    def buildTrap(self, resources, trap, targetRoom):
         if self.madeTrapThisTurn:
             return False
         currResourceType = resources[trap.cost[0]]
         if currResourceType < trap.cost[1]:
             return False
         self.madeTrapThisTurn = True
-        self.traps.append(trap)
+        targetRoom.traps.append(trap)
 
         resources[trap.cost[0]] -= trap.cost[1]  
 
@@ -460,6 +462,8 @@ def appStarted(app):
     app.game = makeNewGame(app)
     app.sameSide = True
     app.troopMove = None
+    
+    app.needsTarget = None
 
     app.images = loadImages(app)
     app.UI = loadGameUI(app)
@@ -576,10 +580,26 @@ def purchaseTroopList(app, room):
     app.UI.append(Button(20, 60, 100, 100, "Soldier",
         lambda: room.buildTroop(app.game.curAlly.resources, Soldier())))
 
-def move(app, roomCords):
+def purchaseTrapList(app, room):
     app.UI = loadGameUI(app)
-    app.UI.append(Button(20,60,120,120,"Select Room\nto Move to"))
-    app.troopMove = roomCords
+    app.UI.append(Button(20, 60, 100, 100, "Bomb", target(app,
+        lambda target: room.buildTrap(app.game.curAlly.resources, Bomb(),
+        app.curBoard[target[0]][target[1]]))))
+
+def target(app, action):
+    def help():
+        app.UI.append(Button(20,60,120,120,"Select Room\nto Target"))
+        app.needsTarget = action
+    return help
+
+# def move(app, room, roomCord):
+#     app.UI = loadGameUI(app)
+#     if app.sameSide:
+#         regi = room.allyRegiment
+#     else:
+#         regi = room.enemyRegiment
+#     app.UI.append(Button(20, 60, 100, 100, "Move", target(app,
+#     lambda target: room.allyRegiment.move(roomCord, target, app.curBoard))))
 
 def attack(app, room):
     if app.sameSide:
@@ -591,8 +611,8 @@ def attack(app, room):
 
 def myRoomActions(app, room, roomCords):
     if not room.allyRegiment == None:
-        app.UI.append(Button(20, 120, 100, 160, "Move",
-            lambda: move(app, roomCords)))
+        app.UI.append(Button(20, 120, 100, 160, "Move", target(app,
+    lambda target: room.allyRegiment.move(roomCords, target, app.curBoard))))
         app.UI.append(Button(20, 180, 100, 220, "Attack!",
             lambda: attack(app, room)))
 
@@ -600,6 +620,13 @@ def myRoomActions(app, room, roomCords):
         if not room.madeTroopThisTurn:
             app.UI.append(Button(20, 60, 100, 100, "Recruit", 
                 lambda: purchaseTroopList(app, room)))
+        else:
+            app.UI.append(Button(20, 60, 100, 100, "Used"))
+    
+    if type(room) == Factory:
+        if not room.madeTrapThisTurn:
+            app.UI.append(Button(20, 60, 100, 100, "Build", 
+            lambda: purchaseTrapList(app, room)))
         else:
             app.UI.append(Button(20, 60, 100, 100, "Used"))
 
@@ -610,8 +637,8 @@ def myRoomActions(app, room, roomCords):
 
 def theirRoomActions(app, room, roomCords):
     if not room.enemyRegiment == None:
-        app.UI.append(Button(20, 120, 100, 160, "Move",
-            lambda: move(app, roomCords)))
+        app.UI.append(Button(20, 120, 100, 160, "Move", target(app,
+    lambda target: room.enemyRegiment.move(roomCords, target, app.curBoard))))
         app.UI.append(Button(20, 180, 100, 220, "Attack!",
             lambda: attack(app, room)))
     
@@ -680,27 +707,32 @@ def mousePressed(app, event):
             app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "Buy?",
                 lambda: purcahseBuildingsList(app, boardRow, boardCol)))
             return
-        myRoom = app.game.curAlly.buildings[boardRow][boardCol]
-        theirRoom = app.game.curEnemy.buildings[boardRow][boardCol]
-        if (app.sameSide and not app.troopMove == None):
-            go = app.game.curAlly.buildings[app.troopMove[0]][app.troopMove[1]]
-            go.allyRegiment.move(app.troopMove, (boardRow, boardCol),
-                 app.game.curAlly.buildings)
-            update(app)
-            app.troopMove = None
-        elif (not app.sameSide and not app.troopMove == None):
-            go = app.game.curEnemy.buildings[app.troopMove[0]][app.troopMove[1]]
-            go.enemyRegiment.move(app.troopMove, (boardRow, boardCol),
-                 app.game.curEnemy.buildings)
-            update(app)
-            app.troopMove = None
+        room = app.curBoard[boardRow][boardCol]
+        if not app.needsTarget == None:
+            app.needsTarget((boardRow, boardCol))
+            app.needsTarget = None
 
-        if (app.sameSide and myRoom != None):
-            myRoomActions(app, myRoom, (boardRow, boardCol))
-            showMyInsides(app, myRoom)
-        elif (not app.sameSide and theirRoom != None):
-            theirRoomActions(app, theirRoom, (boardRow, boardCol))
-            showTheirInsides(app, theirRoom)
+        # if (app.sameSide and not app.troopMove == None):
+        #     go = app.game.curAlly.buildings[app.troopMove[0]][app.troopMove[1]]
+        #     go.allyRegiment.move(app.troopMove, (boardRow, boardCol),
+        #          app.game.curAlly.buildings)
+        #     update(app)
+        #     app.troopMove = None
+        #     return
+        # elif (not app.sameSide and not app.troopMove == None):
+        #     go = app.game.curEnemy.buildings[app.troopMove[0]][app.troopMove[1]]
+        #     go.enemyRegiment.move(app.troopMove, (boardRow, boardCol),
+        #          app.game.curEnemy.buildings)
+        #     update(app)
+        #     app.troopMove = None
+        #     return
+
+        if (app.sameSide and room != None):
+            myRoomActions(app, room, (boardRow, boardCol))
+            showMyInsides(app, room)
+        elif (not app.sameSide and room != None):
+            theirRoomActions(app, room, (boardRow, boardCol))
+            showTheirInsides(app, room)
 
 def update(app):
     if app.sameSide:
