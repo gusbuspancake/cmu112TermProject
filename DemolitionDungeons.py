@@ -592,15 +592,6 @@ def target(app, action):
         app.needsTarget = action
     return help
 
-# def move(app, room, roomCord):
-#     app.UI = loadGameUI(app)
-#     if app.sameSide:
-#         regi = room.allyRegiment
-#     else:
-#         regi = room.enemyRegiment
-#     app.UI.append(Button(20, 60, 100, 100, "Move", target(app,
-#     lambda target: room.allyRegiment.move(roomCord, target, app.curBoard))))
-
 def attack(app, room):
     if app.sameSide:
         room.allyRegiment.attack(room, room.enemyRegiment)
@@ -711,21 +702,6 @@ def mousePressed(app, event):
         if not app.needsTarget == None:
             app.needsTarget((boardRow, boardCol))
             app.needsTarget = None
-
-        # if (app.sameSide and not app.troopMove == None):
-        #     go = app.game.curAlly.buildings[app.troopMove[0]][app.troopMove[1]]
-        #     go.allyRegiment.move(app.troopMove, (boardRow, boardCol),
-        #          app.game.curAlly.buildings)
-        #     update(app)
-        #     app.troopMove = None
-        #     return
-        # elif (not app.sameSide and not app.troopMove == None):
-        #     go = app.game.curEnemy.buildings[app.troopMove[0]][app.troopMove[1]]
-        #     go.enemyRegiment.move(app.troopMove, (boardRow, boardCol),
-        #          app.game.curEnemy.buildings)
-        #     update(app)
-        #     app.troopMove = None
-        #     return
 
         if (app.sameSide and room != None):
             myRoomActions(app, room, (boardRow, boardCol))
