@@ -3,6 +3,8 @@
 
 from cmu_112_graphics import *
 
+import math
+
 # https://docs.python.org/3/library/pickle.html
 import pickle
 
@@ -37,6 +39,7 @@ class Game():
                 if not building.enemyRegiment == None:
                     for troop in building.enemyRegiment.troops:
                         troop.curMovement = troop.maxMovement
+                        troop.hasAttacked = False
         self.turnCount += 1
         self.curAlly, self.curEnemy = self.curEnemy, self.curAlly
 
@@ -76,29 +79,6 @@ class Player():
                 checkNone(self.buildings, row, col-1)):
                 return True
         return False
-
-    # return a list of tuples of all available spaces to build
-    def getConstructionZones(self):
-        result = []
-        for row in range(len(self.buildings)):
-            for col in range(len(self.buildings[0])):
-                building = self.buildings[row][col]
-                if building == None:
-
-                    # checks orthoganol spaces to see if they are buildings
-                    # https://www.geeksforgeeks.org/python-inner-functions/
-                    def checkNone(buildings, row, col):
-                        if (row<0 or col<0 or row>=len(buildings)
-                            or col>=len(buildings[0])):
-                            return False
-                        return buildings[row][col] != None
-
-                    if (checkNone(self.buildings, row+1, col) or 
-                        checkNone(self.buildings, row-1, col) or
-                        checkNone(self.buildings, row, col+1) or
-                        checkNone(self.buildings, row, col-1)):
-                        result.append((row, col))
-        return result
 
     def canPurchase(self, building):
         currResourceType = self.resources[building.cost[0]]
@@ -167,7 +147,8 @@ class Player():
             enemyEntrance.enemyRegiment == None
 
         allyInHomeBase = selfEntrance.allyRegiment
-        allyInHomeBase = Regiment(tempReg).merge(allyInHomeBase) 
+        selfEntrance.allyRegiment = Regiment(tempReg).merge(allyInHomeBase)
+        selfEntrance.allyRegiment.onAllySide = True
 
     def warpToEnemy(self, enemyPlayer):
         selfEntrance = None
@@ -197,11 +178,12 @@ class Player():
 
         allyInEnemyBase = enemyEntrance.enemyRegiment
         enemyEntrance.enemyRegiment = Regiment(tempReg).merge(allyInEnemyBase)
+        enemyEntrance.enemyRegiment.onAllySide = False
     
     def checkRuins(self):
         for row in self.buildings:
             for building in row:
-                if not type(building) == Ruin:
+                if not type(building) == Ruin and not building == None:
                     if building.health <= 0:
                         building = Ruin()
 
@@ -274,6 +256,7 @@ class Factory(Building):
 class Troop():
     def __init__(self, attack, health, movement, size, cost = ("Gold", 0)):
         self.attack = attack
+        self.hasAttacked = True
         self.maxHealth = health
         self.curHealth = health
         self.maxMovement = movement
@@ -292,7 +275,9 @@ class Soldier(Troop):
         self.name = "Soldier"
 
     # soldiers attack the enemy troop with the largest size in the same room
-    def attack(self, room, enemyRegiment):
+    def attackAction(self, room, enemyRegiment):
+        if self.hasAttacked:
+            return
         biggestEnemy = None
         biggestEnemySize = -999
         for troop in enemyRegiment.troops:
@@ -331,7 +316,7 @@ class Regiment():
             return False
         
         for troop in self.troops:
-            troop.attack(room, enemyRegiment)
+            troop.attackAction(room, enemyRegiment)
 
     def cleanOutDead(self, room):
         for troop in self.troops:
@@ -465,11 +450,10 @@ class Button():
 def appStarted(app):
 
     # scale is the n by n pixel dimmensions of one room
-    app.scale = 50
+    app.scale = 100
 
-    # position of top left corner of the canvas in the map of buildings
-    app.curRow = 0
-    app.curCol = 0
+    app.cameraY = 50
+    app.cameraX = 0
     app.font = "Century 14 bold"
 
     # add save and load segment
@@ -556,29 +540,29 @@ def makeNewGame(app):
 def keyPressed(app, event):
     app.UI = loadGameUI(app)
     if event.key == "Down":
-        app.curRow -= app.scale/100
-        if app.curRow < 0:
-            app.curRow = 0
+        app.cameraY -= app.scale
     if event.key == "Up":
-        app.curRow += app.scale/100
-        if app.curRow > len(app.curBoard) - 1:
-            app.curRow = len(app.curBoard) - 1
+        app.cameraY += app.scale
     if event.key == "Right":
-        app.curCol -= app.scale/100
-        if app.curCol < 0 - len(app.curBoard[0])/2:
-            app.curCol = 0 - len(app.curBoard[0])/2
+        app.cameraX -= app.scale
     if event.key == "Left":
-        app.curCol += app.scale/100
-        if app.curCol > 1:
-            app.curCol = 1
+        app.cameraX += app.scale
     if event.key == "p":
-        app.scale += 10
-        if app.scale > 200:
-            app.scale = 200
+        app.scale *= 1.1
     if event.key == "o":
-        app.scale -= 10
-        if app.scale < 10:
-            app.scale = 10
+        app.scale /= 1.1
+    
+    app.scale = min(app.scale, 300)
+    maxScale = max(app.width/len(app.curBoard[0]),
+        app.height/len(app.curBoard))
+    app.scale = max(app.scale, maxScale)
+    app.scale = round(app.scale)
+    app.cameraX = min(app.cameraX, 0)
+    app.cameraY = min(app.cameraY, 50)
+    app.cameraX = max(app.cameraX, app.width - len(app.curBoard[0])*app.scale)
+    app.cameraY = max(app.cameraY, app.height - len(app.curBoard)*app.scale)
+
+    print(app.cameraY, app.cameraX, app.scale)
 
 def purcahseBuildingsList(app, row, col):
     app.UI.append(Button(20, 60, 100, 100, "GoldMine",
@@ -600,16 +584,17 @@ def move(app, roomCords):
 def attack(app, room):
     if app.sameSide:
         room.allyRegiment.attack(room, room.enemyRegiment)
-        app.game.allyPlayer.checkRuins()
+        app.game.curAlly.checkRuins()
     else:
         room.enemyRegiment.attack(room, room.allyRegiment)
-        app.game.enemyPlayer.checkRuins()
+        app.game.curEnemy.checkRuins()
 
 def myRoomActions(app, room, roomCords):
     if not room.allyRegiment == None:
         app.UI.append(Button(20, 120, 100, 160, "Move",
             lambda: move(app, roomCords)))
-        app.UI.append(Button(20, 180, 100, 220, "Attack!"))
+        app.UI.append(Button(20, 180, 100, 220, "Attack!",
+            lambda: attack(app, room)))
 
     if type(room) == Barracks:
         if not room.madeTroopThisTurn:
@@ -627,7 +612,8 @@ def theirRoomActions(app, room, roomCords):
     if not room.enemyRegiment == None:
         app.UI.append(Button(20, 120, 100, 160, "Move",
             lambda: move(app, roomCords)))
-        app.UI.append(Button(20, 180, 100, 220, "Attack!"))
+        app.UI.append(Button(20, 180, 100, 220, "Attack!",
+            lambda: attack(app, room)))
     
     if type(room) == Entrance and not room.enemyRegiment == None:
         app.UI.append(Button(20, 60, 100, 100, "Warp",
@@ -682,15 +668,15 @@ def mousePressed(app, event):
             update(app)
             return
 
-    boardCol = round((event.x - (app.curCol * app.scale)) / app.scale)
-    boardRow = round((event.y - (app.curRow * app.scale)) / app.scale)
+    boardCol = math.floor((event.x - app.cameraX) / app.scale)
+    boardRow = math.floor((event.y - app.cameraY) / app.scale)
     if (boardCol >= 0 and boardCol < len(app.curBoard[0]) and
         boardRow >= 0 and boardRow < len(app.curBoard)):
         app.UI = loadGameUI(app)
         if (app.sameSide and 
             app.game.curAlly.isContructionZone(boardRow, boardCol)):
-            x0 = ((boardCol + app.curCol) * app.scale) - app.scale/2
-            y0 = ((boardRow + app.curRow) * app.scale) - app.scale/2
+            x0 = (boardCol * app.scale) + app.cameraX
+            y0 = (boardRow * app.scale) + app.cameraY
             app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "Buy?",
                 lambda: purcahseBuildingsList(app, boardRow, boardCol)))
             return
@@ -723,17 +709,16 @@ def update(app):
         app.curBoard = app.game.curEnemy.buildings
 
 def drawRoom(app, canvas, row, col, room):
-    smallSide = min(app.width, app.height)
-    unit = smallSide/app.scale
     if room == None:
         roomImage = app.images["Empty"]
     else:
         roomImage = app.images[room.name]
     imageWidth, imageHeight = roomImage.size
     roomImage = app.scaleImage(roomImage, app.scale/imageWidth)
-    x = (col + app.curCol) * app.scale
-    y = (row + app.curRow) * app.scale
-    canvas.create_image(x, y, image=ImageTk.PhotoImage(roomImage))
+    x = (col * app.scale) + app.cameraX
+    y = (row * app.scale) + app.cameraY
+    canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
+        image=ImageTk.PhotoImage(roomImage))
 
 def drawMap(app, canvas):
     for row in range(len(app.curBoard)):
@@ -743,7 +728,7 @@ def drawMap(app, canvas):
 def drawUI(app, canvas):
     for button in app.UI:
         canvas.create_rectangle(button.x0, button.y0, button.x1, button.y1,
-        fill = "gray", outline = "black",width = 5)
+        fill = "black", outline = "blue",width = 5)
         canvas.create_text(button.x0 + (button.x1 - button.x0)/2, (button.y0 + 
             (button.y1 - button.y0)/2), text = button.text, font = app.font)
 
