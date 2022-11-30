@@ -193,7 +193,7 @@ class Building():
         self.allyRegiment = None
         self.enemyRegiment = None
         self.traps = []
-        self.health = 300
+        self.health = 100
 
     def __repr__(self):
         return f'{self.name}'
@@ -267,7 +267,9 @@ class Troop():
         self.size = size
     
     def __repr__(self):
-        name=f"{self.name}: {self.attack}, {self.curHealth}, {self.curMovement}"
+        name = (f"{self.name}: AK:{self.attack}, " +
+        f"HP:{self.curHealth}/{self.maxHealth}, " +
+        f"MV{self.curMovement}/{self.maxMovement}")
         return name
 
 class Soldier(Troop):
@@ -449,41 +451,57 @@ class Button():
         if self.action != None:
             self.action()
 
-def appStarted(app):
+    def __repr__(self):
+        return f'{self.text}'
 
+def appStarted(app):
     # scale is the n by n pixel dimmensions of one room
     app.scale = 100
 
     app.cameraY = 50
     app.cameraX = 0
     app.font = "Century 14 bold"
+    app.UI = loadMenuUI(app)
 
-    # add save and load segment
-    app.game = makeNewGame(app)
+    app.menu = True
+
+def makeGame(app, game):
+    app.menu = False
+    app.game = game
     app.sameSide = True
     app.troopMove = None
-    
     app.needsTarget = None
 
-    app.images = loadImages(app)
     app.UI = loadGameUI(app)
+    app.images = loadImages(app)
     app.curBoard = app.game.curAlly.buildings
 
-def getSaves():
-        path = "saves/"
-        files = os.listdir(path)
-        return files
+def makeNewGame(app):
+    player1Name = app.getUserInput("Enter Player One Name")
+    player1 = Player("gus")
+    player2Name = app.getUserInput("Enter Player Two Name")
+    player2 = Player("sug")
 
-def saveGame(game, fileName):
-    file = open(fileName, "wb")
-    pickle.dump(game, file)
+    makeGame(app, Game(player1, player2))
+
+def getSaves():
+    path = "saves/"
+    files = os.listdir(path)
+    return files
+
+def saveGame(app):
+    fileName = app.getUserInput("Enter Save Name")
+    if fileName == None:
+        return
+    file = open("saves/" + fileName, "wb")
+    pickle.dump(app.game, file)
     file.close()
 
-def loadGame(fileName):
+def loadGame(fileName, app):
     file = open("saves/" + fileName, "rb")
     game = pickle.load(file)
     file.close()
-    return game    
+    makeGame(app, game)    
 
 def loadImages(app):
     result = {}
@@ -516,6 +534,28 @@ def loadImages(app):
     result["Ruins"] = app.loadImage("assets/ruins.jpeg")
     return result
 
+def loadMenuUI(app):
+    result = []
+    result.append(Button(app.width/2 - 100, app.height/2 - 30,
+        app.width/2 + 100, app.height/2 + 30,
+        "Start New Game!", lambda: makeNewGame(app)))
+    result.append(Button(app.width/2 - 100, app.height/2 + 60,
+        app.width/2 + 100, app.height/2 + 120,
+        "Load Game!", lambda: savesUI(app)))
+    return result
+
+def savesUI(app):
+    app.UI = []
+    i = 0
+    j = 0
+    for save in getSaves():
+        i += 1
+        if i == 4:
+            i = 0
+            j += 1
+        app.UI.append(Button((150*i), 400+(100*j), 100+(150*i), 450+(100*j),
+            save, lambda: loadGame(save, app)))
+
 def loadGameUI(app):
     result = []
     result.append(Button(10, app.height - 50, 90, app.height - 10,
@@ -533,16 +573,11 @@ def switchSides(app):
     app.UI = loadGameUI(app)
     update(app)
 
-def makeNewGame(app):
-    # player1Name = app.getUserInput("Enter Player One Name")
-    player1 = Player("gus")
-    # player2Name = app.getUserInput("Enter Player Two Name")
-    player2 = Player("sug")
-
-    return Game(player1, player2)
-
 def keyPressed(app, event):
-    app.UI = loadGameUI(app)
+    if app.menu:
+        app.UI = loadMenuUI(app)
+    else:
+       app.UI = loadGameUI(app)
     if event.key == "Down":
         app.cameraY -= app.scale
     if event.key == "Up":
@@ -555,6 +590,10 @@ def keyPressed(app, event):
         app.scale *= 1.1
     if event.key == "o":
         app.scale /= 1.1
+    if event.key == "Escape":
+        app.UI.append(Button((app.width/2) - 50, (app.height/2) - 25,
+            (app.width/2) + 50, (app.height/2) + 25, "Save?",
+            lambda: saveGame(app)))
     
     app.scale = min(app.scale, 300)
     maxScale = max(app.width/len(app.curBoard[0]),
@@ -565,8 +604,6 @@ def keyPressed(app, event):
     app.cameraY = min(app.cameraY, 50)
     app.cameraX = max(app.cameraX, app.width - len(app.curBoard[0])*app.scale)
     app.cameraY = max(app.cameraY, app.height - len(app.curBoard)*app.scale)
-
-    print(app.cameraY, app.cameraX, app.scale)
 
 def purcahseBuildingsList(app, row, col):
     app.UI.append(Button(20, 60, 100, 100, "GoldMine",
@@ -624,7 +661,6 @@ def myRoomActions(app, room, roomCords):
     if type(room) == Entrance and not room.allyRegiment == None:
             app.UI.append(Button(20, 60, 100, 100, "Warp",
             lambda: app.game.curAlly.warpToEnemy(app.game.curEnemy)))
-                
 
 def theirRoomActions(app, room, roomCords):
     if not room.enemyRegiment == None:
@@ -638,6 +674,7 @@ def theirRoomActions(app, room, roomCords):
             lambda: app.game.curAlly.warpHome(app.game.curEnemy)))
 
 def showMyInsides(app, room):
+    health = f"Room HP: {room.health}\n"
     allyTroops = "Allies: "
     enemyTroops = "Enemies: "
     traps = "Traps: "
@@ -656,11 +693,12 @@ def showMyInsides(app, room):
         enemyTroops += "None \n"
     if traps == "Traps: ":
         traps += "None \n"
-    info = allyTroops + enemyTroops + traps
+    info = health + allyTroops + enemyTroops + traps
 
-    app.UI.append(Button(app.width-210, 60, app.width-10, 360, info))
+    app.UI.append(Button(app.width-310, 60, app.width-10, 360, info))
 
 def showTheirInsides(app, room):
+    health = f"Room HP: {room.health}\n"
     allyTroops = "Allies: "
     enemyTroops = "Enemies: "
     if room.enemyRegiment != None:
@@ -674,41 +712,49 @@ def showTheirInsides(app, room):
         allyTroops += "None \n"
     if enemyTroops == "Enemies: ":
         enemyTroops += "None \n"
-    info = allyTroops + enemyTroops
+    info = health + allyTroops + enemyTroops
 
-    app.UI.append(Button(app.width-210, 60, app.width-10, 360, info))
+    app.UI.append(Button(app.width-310, 60, app.width-10, 360, info))
 
 def mousePressed(app, event):
-    for button in app.UI:
-        if button.checkClicked(event.x, event.y):
+    if app.menu:
+        for button in app.UI:
+            if button.checkClicked(event.x, event.y):
+                button.onClick()
+                return
+        app.UI = loadMenuUI(app)
+    else:
+        for button in app.UI:
+            if button.checkClicked(event.x, event.y):
+                app.UI = loadGameUI(app)
+                button.onClick()
+                update(app)
+                return
+
+        boardCol = math.floor((event.x - app.cameraX) / app.scale)
+        boardRow = math.floor((event.y - app.cameraY) / app.scale)
+        if (boardCol >= 0 and boardCol < len(app.curBoard[0]) and
+            boardRow >= 0 and boardRow < len(app.curBoard)):
             app.UI = loadGameUI(app)
-            button.onClick()
-            update(app)
-            return
+            if (app.sameSide and 
+                app.game.curAlly.isContructionZone(boardRow, boardCol)):
+                x0 = (boardCol * app.scale) + app.cameraX
+                y0 = (boardRow * app.scale) + app.cameraY
+                app.UI.append(Button(x0, y0, x0 + app.scale,
+                    y0 + app.scale, "Buy?",
+                    lambda: purcahseBuildingsList(app, boardRow, boardCol)))
+                return
+            room = app.curBoard[boardRow][boardCol]
+            if not app.needsTarget == None:
+                app.needsTarget((boardRow, boardCol))
+                app.needsTarget = None
 
-    boardCol = math.floor((event.x - app.cameraX) / app.scale)
-    boardRow = math.floor((event.y - app.cameraY) / app.scale)
-    if (boardCol >= 0 and boardCol < len(app.curBoard[0]) and
-        boardRow >= 0 and boardRow < len(app.curBoard)):
-        app.UI = loadGameUI(app)
-        if (app.sameSide and 
-            app.game.curAlly.isContructionZone(boardRow, boardCol)):
-            x0 = (boardCol * app.scale) + app.cameraX
-            y0 = (boardRow * app.scale) + app.cameraY
-            app.UI.append(Button(x0, y0, x0 + app.scale, y0 + app.scale, "Buy?",
-                lambda: purcahseBuildingsList(app, boardRow, boardCol)))
-            return
-        room = app.curBoard[boardRow][boardCol]
-        if not app.needsTarget == None:
-            app.needsTarget((boardRow, boardCol))
-            app.needsTarget = None
-
-        if (app.sameSide and room != None):
-            myRoomActions(app, room, (boardRow, boardCol))
-            showMyInsides(app, room)
-        elif (not app.sameSide and room != None):
-            theirRoomActions(app, room, (boardRow, boardCol))
-            showTheirInsides(app, room)
+            if (app.sameSide and room != None):
+                myRoomActions(app, room, (boardRow, boardCol))
+                showMyInsides(app, room)
+            elif (not app.sameSide and room != None):
+                theirRoomActions(app, room, (boardRow, boardCol))
+                showTheirInsides(app, room)
 
 def update(app):
     if app.sameSide:
@@ -748,9 +794,20 @@ def drawResources(app, canvas):
     canvas.create_rectangle(0, 0, app.width, 50, fill = "gray", width = 0)
     canvas.create_text(app.width / 2, 25, text = result, font = app.font)
 
+def drawMenu(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill = "gray")
+    canvas.create_text(app.width/2, app.height/4,
+        text = "WELCOME TO", font = "Century 64 bold")
+    canvas.create_text(app.width/2, (app.height/4) + 100,
+        text = "DEMOLITION DUNGEONS", font = "Century 64 bold")
+
 def redrawAll(app, canvas):
-    drawMap(app, canvas)
+    if app.menu:
+        drawMenu(app, canvas)
+    else:
+        drawMap(app, canvas)
+        drawResources(app, canvas)
+    
     drawUI(app, canvas)
-    drawResources(app, canvas)
 
 runApp(width = 800, height = 800)
