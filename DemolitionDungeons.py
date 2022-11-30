@@ -15,6 +15,7 @@ class Game():
     def __init__(self, player1, player2):
         self.curAlly = player1
         self.curEnemy = player2
+        self.loser = None
         self.turnCount = 2
 
     def endTurn(self):
@@ -29,6 +30,9 @@ class Game():
                     building.madeTroopThisTurn = False
                 elif type(building) == Factory:
                     building.madeTrapThisTurn = False
+                elif type(building) == Ruin:
+                    self.curAlly.resources[building.debt[0]] -= (
+                        building.debt[1])
                 if not building.allyRegiment == None:
                     for troop in building.allyRegiment.troops:
                         troop.curMovement = troop.maxMovement
@@ -40,6 +44,8 @@ class Game():
                     for troop in building.enemyRegiment.troops:
                         troop.curMovement = troop.maxMovement
                         troop.hasAttacked = False
+        if self.curAlly.resources["Gold"] < 0:
+            self.loser = self.curAlly
         self.turnCount += 1
         self.curAlly, self.curEnemy = self.curEnemy, self.curAlly
 
@@ -54,7 +60,7 @@ class Player():
             self.buildings.append(temp)
         
         self.buildings[5][5] = Entrance()
-        self.resources = {"Gold":10000000}
+        self.resources = {"Gold":200}
 
     # helper function for debugging before GUI
     def printBuildings(self):
@@ -181,12 +187,13 @@ class Player():
         enemyEntrance.enemyRegiment.onAllySide = False
     
     def checkRuins(self):
-        for row in self.buildings:
-            for building in row:
+        for row in range(len(self.buildings)):
+            for col in range(len(self.buildings[0])):
+                building = self.buildings[row][col]
                 if (not type(building) == Ruin and not building == None and
                     not type(building) == Entrance):
                     if building.health <= 0:
-                        building = Ruin()
+                        self.buildings[row][col] = Ruin(building)
 
 class Building():
     def __init__(self):
@@ -199,10 +206,14 @@ class Building():
         return f'{self.name}'
 
 class Ruin(Building):
-    def __init__(self):
+    def __init__(self, oldBuilding):
         super().__init__()
         self.name = "Ruin"
         self.health = 0
+        self.debt = ("Gold", 25)
+        self.allyRegiment = oldBuilding.allyRegiment
+        self.enemyRegiment = oldBuilding.enemyRegiment
+        self.traps = oldBuilding.traps
 
 class Entrance(Building):
     def __init__(self):
@@ -282,6 +293,7 @@ class Soldier(Troop):
     def attackAction(self, room, enemyRegiment):
         if self.hasAttacked:
             return
+        
         biggestEnemy = None
         biggestEnemySize = -999
         for troop in enemyRegiment.troops:
@@ -314,13 +326,19 @@ class Regiment():
         return size
 
     def attack(self, room, enemyRegiment):
-        if enemyRegiment == None:
-            if not self.onAllySide:
-                room.health -= self.attack
+        if enemyRegiment == None and self.onAllySide:
             return False
+
+        roomDamage = 0 
         
         for troop in self.troops:
-            troop.attackAction(room, enemyRegiment)
+            if enemyRegiment == None:
+                roomDamage = troop.attack
+            else:
+                troop.attackAction(room, enemyRegiment)
+
+        if enemyRegiment == None and not self.onAllySide:
+            room.health -= roomDamage
 
     def cleanOutDead(self, room):
         for troop in self.troops:
@@ -531,7 +549,7 @@ def loadImages(app):
     #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.kindpng.com%2Ffree%2
     #Fruins%2F&psig=AOvVaw1dmkCeCk4c5k-Qpa5DCsiP&ust=1669841646321000&source=im
     #ages&cd=vfe&ved=0CA8QjRxqFwoTCLid0oOj1PsCFQAAAAAdAAAAABAD
-    result["Ruins"] = app.loadImage("assets/ruins.jpeg")
+    result["Ruin"] = app.loadImage("assets/ruins.jpeg")
     return result
 
 def loadMenuUI(app):
@@ -551,7 +569,7 @@ def savesUI(app):
     for save in getSaves():
         i += 1
         if i == 4:
-            i = 0
+            i = 1
             j += 1
         app.UI.append(Button((150*i), 400+(100*j), 100+(150*i), 450+(100*j),
             save, lambda: loadGame(save, app)))
@@ -568,6 +586,13 @@ def loadGameUI(app):
                     app.height - 10, "Return Home", lambda: switchSides(app)))
     return result
 
+def loadGameOverUI(app):
+    result = []
+    result.append(Button(app.width/2 - 100, app.height/2 - 30,
+        app.width/2 + 100, app.height/2 + 30,
+        "Play Again?", lambda: runApp(width = 800, height = 800)))
+    return result
+
 def switchSides(app):
     app.sameSide = not app.sameSide
     app.UI = loadGameUI(app)
@@ -576,8 +601,10 @@ def switchSides(app):
 def keyPressed(app, event):
     if app.menu:
         app.UI = loadMenuUI(app)
+    elif app.game.loser == None:
+        app.UI = loadGameUI(app)
     else:
-       app.UI = loadGameUI(app)
+        app.ui = loadGameOverUI(app)
     if event.key == "Down":
         app.cameraY -= app.scale
     if event.key == "Up":
@@ -717,18 +744,27 @@ def showTheirInsides(app, room):
     app.UI.append(Button(app.width-310, 60, app.width-10, 360, info))
 
 def mousePressed(app, event):
+    
     if app.menu:
         for button in app.UI:
             if button.checkClicked(event.x, event.y):
                 button.onClick()
                 return
         app.UI = loadMenuUI(app)
+    elif not app.game.loser == None:
+        app.UI = loadGameOverUI(app)
+        for button in app.UI:
+            if button.checkClicked(event.x, event.y):
+                button.onClick()
+                return
     else:
         for button in app.UI:
             if button.checkClicked(event.x, event.y):
                 app.UI = loadGameUI(app)
                 button.onClick()
                 update(app)
+                if not app.game.loser == None:
+                    app.UI = loadGameOverUI(app)
                 return
 
         boardCol = math.floor((event.x - app.cameraX) / app.scale)
@@ -801,13 +837,23 @@ def drawMenu(app, canvas):
     canvas.create_text(app.width/2, (app.height/4) + 100,
         text = "DEMOLITION DUNGEONS", font = "Century 64 bold")
 
+def drawGameOver(app, canvas):
+    canvas.create_rectangle(0, 0, app.width, app.height, fill = "black")
+    canvas.create_text(app.width/2, app.height/4,
+        text = "GAME OVER", font = "Century 64 bold", fill = "Red")
+    canvas.create_text(app.width/2, (app.height/4) + 100,
+        text = f"{app.game.loser.name} LOST!", font = "Century 64 bold",
+        fill = "Red")
+
 def redrawAll(app, canvas):
     if app.menu:
         drawMenu(app, canvas)
-    else:
+    elif app.game.loser == None:
         drawMap(app, canvas)
         drawResources(app, canvas)
-    
+    else:
+        drawGameOver(app, canvas)
+
     drawUI(app, canvas)
 
 runApp(width = 800, height = 800)
