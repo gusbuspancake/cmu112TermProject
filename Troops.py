@@ -1,7 +1,7 @@
 
 
 class Troop():
-    def __init__(self, attack, health, movement, size, cost = ("Gold", 0)):
+    def __init__(self, attack, health, movement, cost = ("Gold", 0)):
         self.attack = attack
         self.hasAttacked = True
         self.maxHealth = health
@@ -9,7 +9,6 @@ class Troop():
         self.maxMovement = movement
         self.curMovement = 0
         self.cost = cost
-        self.size = size
     
     def __repr__(self):
         name = (f"{self.name}: AK:{self.attack}, " +
@@ -19,26 +18,70 @@ class Troop():
 
 class Soldier(Troop):
     def __init__(self):
-        super().__init__(attack = 10, health = 35, movement = 5, size = 5,
+        super().__init__(attack = 10, health = 35, movement = 5,
             cost = ("Gold", 50))
         self.name = "Soldier"
 
-    # soldiers attack the enemy troop with the largest size in the same room
+    # Soldiers attack the enemy troop with the largest 
+    # max health in the same room
+    # ties go to enemy with lowest current health
     def attackAction(self, room, enemyRegiment):
         if self.hasAttacked:
             return
         
         biggestEnemy = None
-        biggestEnemySize = -999
+        biggestEnemyHealth = -999
         for troop in enemyRegiment.troops:
-            if troop.size > biggestEnemySize:
+            if troop.size > biggestEnemyHealth:
                 biggestEnemy = troop
-                biggestEnemySize = troop.size
-            elif troop.size == biggestEnemySize:
+                biggestEnemyHealth = troop.maxHealth
+            elif troop.size == biggestEnemyHealth:
                 if troop.curHealth > biggestEnemy.curHealth:
                     biggestEnemy = troop
-                    biggestEnemySize = troop.size
+
         biggestEnemy.curHealth -= self.attack
+        enemyRegiment.cleanOutDead(room)
+
+class Orc(Troop):
+    def __init__(self):
+        super().__init__(attack = 5, health = 50, movement = 5,
+            cost = ("Gold", 75))
+        self.name = "Orc"
+    
+    # Orcs attack the enemy troop with the lowest 
+    # max health in the same room
+    # ties go to enemy with lowest current health
+    def attackAction(self, room, enemyRegiment):
+        if self.hasAttacked:
+            return
+        
+        weakestEnemy = None
+        weakestEnemyHealth = -999
+        for troop in enemyRegiment.troops:
+            if troop.maxHealth > weakestEnemyHealth:
+                weakestEnemy = troop
+                weakestEnemyHealth = troop.maxHealth
+            elif troop.maxHealth == weakestEnemyHealth:
+                if troop.curHealth > weakestEnemy.curHealth:
+                    weakestEnemy = troop
+
+        weakestEnemy.curHealth -= self.attack
+        enemyRegiment.cleanOutDead(room)
+
+class Wizard(Troop):
+    def __init__(self):
+        super().__init__(attack = 5, health = 25, movement = 5,
+            cost = ("Gold", 75))
+        self.name = "Wizard"
+    
+    # Wizards attack ALL enemy troops in a room
+    def attackAction(self, room, enemyRegiment):
+        if self.hasAttacked:
+            return
+
+        for troop in enemyRegiment.troops:
+            troop.curHealth -= self.attack
+        
         enemyRegiment.cleanOutDead(room)
 
 class Regiment():
@@ -53,11 +96,11 @@ class Regiment():
                 curMovement = troop.curMovement
         return curMovement
 
-    def getSize(self):
-        size = 0
+    def getMaxHealth(self):
+        maxHealth = 0
         for troop in self.troops:
-            size += troop.size
-        return size
+            maxHealth += troop.maxHealth
+        return maxHealth
 
     def attack(self, room, enemyRegiment):
         if enemyRegiment == None and self.onAllySide:
@@ -66,8 +109,9 @@ class Regiment():
         roomDamage = 0 
         
         for troop in self.troops:
-            if enemyRegiment == None:
-                roomDamage = troop.attack
+            if enemyRegiment == None and not troop.hasAttacked:
+                roomDamage += troop.attack
+                troop.hasAttacked = True
             else:
                 troop.attackAction(room, enemyRegiment)
 
@@ -115,7 +159,7 @@ class Regiment():
             if self.getCurMovement() == 0:
                 break
             if not curRoom.enemyRegiment == None:
-                if curRoom.enemyRegiment.getSize() >= self.getSize():
+                if curRoom.enemyRegiment.getMaxHealth() >= self.getMaxHealth():
                     break
         if self.onAllySide:
             curRoom.allyRegiment = self.merge(curRoom.allyRegiment)

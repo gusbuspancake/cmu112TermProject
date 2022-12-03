@@ -7,7 +7,6 @@ class Building():
         self.enemyRegiment = None
         self.traps = []
         self.health = 100
-        self.color = "pink"
 
     def __repr__(self):
         return f'{self.name}'
@@ -16,7 +15,6 @@ class Ruin(Building):
     def __init__(self, oldBuilding):
         super().__init__()
         self.name = "Ruin"
-        self.color = "grey"
         self.health = 0
         self.debt = ("Gold", 25)
         self.allyRegiment = oldBuilding.allyRegiment
@@ -27,14 +25,12 @@ class Entrance(Building):
     def __init__(self):
         super().__init__()
         self.name = "Entrance"
-        self.color = "green"
         self.health = 0
 
 class GoldMine(Building):
     def __init__(self):
         super().__init__()
         self.name = "GoldMine"
-        self.color = "yellow"
         self.cost = ("Gold", 200)
         self.profit = ("Gold", 50)
 
@@ -42,7 +38,6 @@ class Barracks(Building):
     def __init__(self):
         super().__init__()
         self.name = "Barracks"
-        self.color = "red"
         self.cost = ("Gold", 100)
         self.madeTroopThisTurn = False
 
@@ -62,7 +57,6 @@ class Factory(Building):
     def __init__(self):
         super().__init__()
         self.name = "Factory"
-        self.color = "blue"
         self.cost = ("Gold", 100)
         self.madeTrapThisTurn = False
 

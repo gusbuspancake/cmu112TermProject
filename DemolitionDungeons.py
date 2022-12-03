@@ -6,8 +6,8 @@ from cmu_112_graphics import *
 from Game import Game
 from Player import Player
 from Buildings import GoldMine, Barracks, Factory, Entrance
-from Traps import Bomb
-from Troops import Soldier
+from Traps import Bomb, Snare
+from Troops import Soldier, Orc, Wizard
 
 import math
 
@@ -39,10 +39,9 @@ class Button():
 def appStarted(app):
     # scale is the n by n pixel dimmensions of one room
     app.scale = 100
-
     app.cameraY = 50
     app.cameraX = 0
-    app.font = "Century 14 bold"
+    app.font = "Copperplate 20 bold"
     app.UI = loadMenuUI(app)
 
     app.menu = True
@@ -88,38 +87,14 @@ def loadGame(fileName, app):
 
 def loadImages(app):
     result = {}
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.pngitem.com%2Fmiddle
-    #%2FimJJomh_gold-mine-clipart-hd-png-download%2F&psig=AOvVaw0mTltkyz9li1IQg
-    #KUujKYi&ust=1669686072855000&source=images&cd=vfe&ved=0CA8QjRxqFwoTCJCFy
-    #rzfz_sCFQAAAAAdAAAAABAD
-    result["GoldMine"] = app.loadImage("assets/goldMine.jpeg")
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.vectorstock.com%2Fro
-    #yalty-free-vector%2Fcartoon-mine-entrance-retro-tunnel-old-mine-vector-331
-    #46747&psig=AOvVaw3wiEwEOKoBuPDwC3X5n2q9&ust=1669686129161000&source=images
-    #&cd=vfe&ved=0CA8QjRxqFwoTCOi0k93fz_sCFQAAAAAdAAAAABAD
-    result["Entrance"] = app.loadImage("assets/entrance.jpeg")
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fen.wiktionary.org%2Fwiki
-    #%2Fsquare&psig=AOvVaw3p3TqKymy4hBryA073nkcs&ust=1669686202053000&source=im
-    #ages&cd=vfe&ved=0CA8QjRxqFwoTCMDivPrfz_sCFQAAAAAdAAAAABAD
-    result["Empty"] = app.loadImage("assets/none.png")
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.flaticon.com%2Ffree-
-    #icon%2Fbarracks_3016501&psig=AOvVaw0L6R8z3SDMCLmx9qWnZ60g&ust=166975403737
-    #3000&source=images&cd=vfe&ved=0CA8QjRxqGAoTCPCR0uPc0fsCFQAAAAAdAAAAABDpAg
+    result["GoldMine"] = app.loadImage("assets/goldMine.png")
+    result["Entrance"] = app.loadImage("assets/entrance.png")
     result["Barracks"] = app.loadImage("assets/barracks.png")
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.nicepng.com%2Fourpic
-    #%2Fu2y3q8u2e6o0i1o0_environmental-clipart-green-brain-manufacturing-clipar
-    #t-png%2F&psig=AOvVaw3ureIqIOTmHA_mC2SWgYU0&ust=1669754191901000&source=ima
-    #ges&cd=vfe&ved=0CA8QjRxqFwoTCMCZzavd0fsCFQAAAAAdAAAAABAD
-    result["Factory"] = app.loadImage("assets/factory.jpeg")
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.kindpng.com%2Ffree%2
-    #Fruins%2F&psig=AOvVaw1dmkCeCk4c5k-Qpa5DCsiP&ust=1669841646321000&source=im
-    #ages&cd=vfe&ved=0CA8QjRxqFwoTCLid0oOj1PsCFQAAAAAdAAAAABAD
-    result["Ruin"] = app.loadImage("assets/ruins.jpeg")
-    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-v
-    #ector%2Fcartoon-stone-texture_976364.htm&psig=AOvVaw3Ji3e0i1GfeGA942D9mamQ
-    #&ust=1670172451598000&source=images&cd=vfe&ved=0CA8QjRxqFwoTCJif5a_z3fsCFQ
-    #AAAAAdAAAAABAD
-    result["Rock"] = app.loadImage("assets/rock.jpg")
+    result["Factory"] = app.loadImage("assets/factory.png")
+    result["Ruin"] = app.loadImage("assets/ruins.png")
+    result["Rock"] = app.loadImage("assets/rock.png")
+    result["Ally"] = app.loadImage("assets/mySoldiers.png")
+    result["Enemy"] = app.loadImage("assets/theirSoldiers.png")
     return result
 
 def loadMenuUI(app):
@@ -141,20 +116,20 @@ def savesUI(app):
         if i == 4:
             i = 1
             j += 1
-        app.UI.append(Button((150*i), 400+(100*j), 100+(150*i), 450+(100*j),
+        app.UI.append(Button((150*i), 400+(100*j), 100+(200*i), 450+(100*j),
             save, lambda: loadGame(save, app)))
 
 def loadGameUI(app):
     result = []
-    result.append(Button(10, app.height - 50, 90, app.height - 10,
-                    "End Turn", app.game.endTurn))
-    result.append(Button(app.width - 120, app.height - 110, app.width - 10,
+    result.append(Button(10, app.height - 50, 130, app.height - 10,
+                    "End Turn", lambda: endTurn(app)))
+    result.append(Button(app.width - 150, app.height - 110, app.width - 10,
                     app.height - 70, "Help", lambda: loadInfoUI(app)))
     if app.sameSide:
-        result.append(Button(app.width - 120, app.height - 50, app.width - 10,
+        result.append(Button(app.width - 150, app.height - 50, app.width - 10,
                     app.height - 10, "Go To Enemy", lambda: switchSides(app)))
     else:
-        result.append(Button(app.width - 120, app.height - 50, app.width - 10,
+        result.append(Button(app.width - 150, app.height - 50, app.width - 10,
                     app.height - 10, "Return Home", lambda: switchSides(app)))
     return result
 
@@ -169,11 +144,6 @@ def loadGameOverUI(app):
         app.width/2 + 100, app.height/2 + 30,
         "Play Again?", lambda: runApp(width = 800, height = 800)))
     return result
-
-def switchSides(app):
-    app.sameSide = not app.sameSide
-    app.UI = loadGameUI(app)
-    update(app)
 
 def keyPressed(app, event):
     if app.menu:
@@ -213,26 +183,33 @@ def keyPressed(app, event):
         app.ui = loadGameOverUI(app)
     
 def purcahseBuildingsList(app, row, col):
-    app.UI.append(Button(20, 60, 100, 100, "GoldMine",
+    app.UI.append(Button(20, 60, 130, 100, "GoldMine",
         lambda: app.game.curAlly.purchase((row,col), GoldMine())))
-    app.UI.append(Button(20, 120, 100, 160, "Barracks",
+    app.UI.append(Button(20, 120, 130, 160, "Barracks",
         lambda: app.game.curAlly.purchase((row,col), Barracks())))
-    app.UI.append(Button(20, 180, 100, 220, "Factory",
+    app.UI.append(Button(20, 180, 130, 220, "Factory",
         lambda: app.game.curAlly.purchase((row,col), Factory())))
 
 def purchaseTroopList(app, room):
-    app.UI.append(Button(20, 60, 100, 100, "Soldier",
+    app.UI.append(Button(20, 60, 130, 100, "Soldier",
         lambda: room.buildTroop(app.game.curAlly.resources, Soldier())))
+    app.UI.append(Button(20, 120, 130, 160, "Orc",
+        lambda: room.buildTroop(app.game.curAlly.resources, Orc())))
+    app.UI.append(Button(20, 180, 130, 220, "Wizard",
+        lambda: room.buildTroop(app.game.curAlly.resources, Wizard())))
 
 def purchaseTrapList(app, room):
     app.UI = loadGameUI(app)
-    app.UI.append(Button(20, 60, 100, 100, "Bomb", target(app,
+    app.UI.append(Button(20, 60, 130, 100, "Bomb", target(app,
         lambda target: room.buildTrap(app.game.curAlly.resources, Bomb(),
+        app.curBoard[target[0]][target[1]]))))
+    app.UI.append(Button(20, 120, 130, 160, "Snare", target(app,
+        lambda target: room.buildTrap(app.game.curAlly.resources, Snare(),
         app.curBoard[target[0]][target[1]]))))
 
 def target(app, action):
     def help():
-        app.UI.append(Button(20,60,120,120,"Select Room\nto Target"))
+        app.UI.append(Button(20,60,180,120,"Select Room\nto Target"))
         app.needsTarget = action
     return help
 
@@ -246,38 +223,38 @@ def attack(app, room):
 
 def myRoomActions(app, room, roomCords):
     if not room.allyRegiment == None:
-        app.UI.append(Button(20, 120, 100, 160, "Move", target(app,
+        app.UI.append(Button(20, 120, 130, 160, "Move", target(app,
     lambda target: room.allyRegiment.move(roomCords, target, app.curBoard))))
-        app.UI.append(Button(20, 180, 100, 220, "Attack!",
+        app.UI.append(Button(20, 180, 130, 220, "Attack!",
             lambda: attack(app, room)))
 
     if type(room) == Barracks:
         if not room.madeTroopThisTurn:
-            app.UI.append(Button(20, 60, 100, 100, "Recruit", 
+            app.UI.append(Button(20, 60, 130, 100, "Recruit", 
                 lambda: purchaseTroopList(app, room)))
         else:
-            app.UI.append(Button(20, 60, 100, 100, "Used"))
+            app.UI.append(Button(20, 60, 130, 100, "Used"))
     
     if type(room) == Factory:
         if not room.madeTrapThisTurn:
-            app.UI.append(Button(20, 60, 100, 100, "Build", 
+            app.UI.append(Button(20, 60, 130, 100, "Build", 
             lambda: purchaseTrapList(app, room)))
         else:
-            app.UI.append(Button(20, 60, 100, 100, "Used"))
+            app.UI.append(Button(20, 60, 130, 100, "Used"))
 
     if type(room) == Entrance and not room.allyRegiment == None:
-            app.UI.append(Button(20, 60, 100, 100, "Warp",
+            app.UI.append(Button(20, 60, 130, 100, "Warp",
             lambda: app.game.curAlly.warpToEnemy(app.game.curEnemy)))
 
 def theirRoomActions(app, room, roomCords):
     if not room.enemyRegiment == None:
-        app.UI.append(Button(20, 120, 100, 160, "Move", target(app,
+        app.UI.append(Button(20, 120, 130, 160, "Move", target(app,
     lambda target: room.enemyRegiment.move(roomCords, target, app.curBoard))))
-        app.UI.append(Button(20, 180, 100, 220, "Attack!",
+        app.UI.append(Button(20, 180, 130, 220, "Attack!",
             lambda: attack(app, room)))
     
     if type(room) == Entrance and not room.enemyRegiment == None:
-        app.UI.append(Button(20, 60, 100, 100, "Warp",
+        app.UI.append(Button(20, 60, 130, 100, "Warp",
             lambda: app.game.curAlly.warpHome(app.game.curEnemy)))
 
 def showMyInsides(app, room):
@@ -342,7 +319,6 @@ def mousePressed(app, event):
             if button.checkClicked(event.x, event.y):
                 app.UI = loadGameUI(app)
                 button.onClick()
-                update(app)
                 if not app.game.loser == None:
                     app.UI = loadGameOverUI(app)
                 return
@@ -372,7 +348,18 @@ def mousePressed(app, event):
                 theirRoomActions(app, room, (boardRow, boardCol))
                 showTheirInsides(app, room)
 
-def update(app):
+def switchSides(app):
+    app.sameSide = not app.sameSide
+    app.UI = loadGameUI(app)
+
+def endTurn(app):
+    app.game.endTurn()
+    app.sameSide = True
+    app.UI = loadGameUI(app)
+
+def timerFired(app):
+    if app.menu:
+        return
     if app.sameSide:
         app.curBoard = app.game.curAlly.buildings
     else:
@@ -389,13 +376,29 @@ def drawRoom(app, canvas, row, col, room):
     canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
         image=ImageTk.PhotoImage(rock))
     
-    if not room == None:
-        roomImage = app.images[room.name]
-        imageWidth, imageHeight = roomImage.size
-        roomImage = app.scaleImage(roomImage, app.scale/imageWidth)
-        canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
-            image=ImageTk.PhotoImage(roomImage))
+    if room == None:
+        return
+    roomImage = app.images[room.name]
+    imageWidth, imageHeight = roomImage.size
+    roomImage = app.scaleImage(roomImage, app.scale/imageWidth)
+    canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
+        image=ImageTk.PhotoImage(roomImage))
 
+    if ((room.allyRegiment != None and app.sameSide) or
+        (room.enemyRegiment != None and not app.sameSide)):
+        allyImage = app.images["Ally"]
+        imageWidth, imageHeight = allyImage.size
+        allyImage = app.scaleImage(allyImage, app.scale/imageWidth)
+        canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
+            image=ImageTk.PhotoImage(allyImage))
+    if ((room.enemyRegiment != None and app.sameSide) or
+        (room.allyRegiment != None and not app.sameSide)):
+        enemyImage = app.images["Enemy"]
+        imageWidth, imageHeight = enemyImage.size
+        enemyImage = app.scaleImage(enemyImage, app.scale/imageWidth)
+        canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
+            image=ImageTk.PhotoImage(enemyImage))
+    
 def drawMap(app, canvas):
     for row in range(len(app.curBoard)):
         for col in range(len(app.curBoard[0])):

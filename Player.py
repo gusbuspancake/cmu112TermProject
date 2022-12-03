@@ -82,7 +82,7 @@ class Player():
 
     def warpHome(self, enemyPlayer):
         selfEntrance = None
-        enemyEnterance = None
+        enemyEntrance = None
 
         for row in self.buildings:
             for building in row:
@@ -104,7 +104,7 @@ class Player():
                 enemyEntrance.enemyRegiment.troops.remove(troop)
         
         if len(enemyEntrance.enemyRegiment.troops) == 0:
-            enemyEntrance.enemyRegiment == None
+            enemyEntrance.enemyRegiment = None
 
         allyInHomeBase = selfEntrance.allyRegiment
         selfEntrance.allyRegiment = Regiment(tempReg).merge(allyInHomeBase)
@@ -112,7 +112,7 @@ class Player():
 
     def warpToEnemy(self, enemyPlayer):
         selfEntrance = None
-        enemyEnterance = None
+        enemyEntrance = None
 
         for row in self.buildings:
             for building in row:
@@ -134,7 +134,7 @@ class Player():
                 selfEntrance.allyRegiment.troops.remove(troop)
         
         if len(selfEntrance.allyRegiment.troops) == 0:
-            selfEntrance.allyRegiment == None
+            selfEntrance.allyRegiment = None
 
         allyInEnemyBase = enemyEntrance.enemyRegiment
         enemyEntrance.enemyRegiment = Regiment(tempReg).merge(allyInEnemyBase)
