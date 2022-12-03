@@ -69,6 +69,7 @@ def makeNewGame(app):
 def getSaves():
     path = "saves/"
     files = os.listdir(path)
+    files = filter(lambda x: not x.startswith("."), files)
     return files
 
 def saveGame(app):
@@ -114,6 +115,11 @@ def loadImages(app):
     #Fruins%2F&psig=AOvVaw1dmkCeCk4c5k-Qpa5DCsiP&ust=1669841646321000&source=im
     #ages&cd=vfe&ved=0CA8QjRxqFwoTCLid0oOj1PsCFQAAAAAdAAAAABAD
     result["Ruin"] = app.loadImage("assets/ruins.jpeg")
+    #https://www.google.com/url?sa=i&url=https%3A%2F%2Fwww.freepik.com%2Ffree-v
+    #ector%2Fcartoon-stone-texture_976364.htm&psig=AOvVaw3Ji3e0i1GfeGA942D9mamQ
+    #&ust=1670172451598000&source=images&cd=vfe&ved=0CA8QjRxqFwoTCJif5a_z3fsCFQ
+    #AAAAAdAAAAABAD
+    result["Rock"] = app.loadImage("assets/rock.jpg")
     return result
 
 def loadMenuUI(app):
@@ -141,7 +147,9 @@ def savesUI(app):
 def loadGameUI(app):
     result = []
     result.append(Button(10, app.height - 50, 90, app.height - 10,
-                        "End Turn", app.game.endTurn))
+                    "End Turn", app.game.endTurn))
+    result.append(Button(app.width - 120, app.height - 110, app.width - 10,
+                    app.height - 70, "Help", lambda: loadInfoUI(app)))
     if app.sameSide:
         result.append(Button(app.width - 120, app.height - 50, app.width - 10,
                     app.height - 10, "Go To Enemy", lambda: switchSides(app)))
@@ -149,6 +157,11 @@ def loadGameUI(app):
         result.append(Button(app.width - 120, app.height - 50, app.width - 10,
                     app.height - 10, "Return Home", lambda: switchSides(app)))
     return result
+
+def loadInfoUI(app):
+    app.UI.append(Button((app.width/2) - 75, (app.height/2) - 50,
+                (app.width/2) + 75, (app.height/2) + 50, 
+                "  Open Read Me\nFor Instructions!"))
 
 def loadGameOverUI(app):
     result = []
@@ -167,35 +180,38 @@ def keyPressed(app, event):
         app.UI = loadMenuUI(app)
     elif app.game.loser == None:
         app.UI = loadGameUI(app)
+
+        if event.key == "i" or event.key == "I":
+            loadInfoUI(app)
+        if event.key == "Down":
+            app.cameraY -= app.scale
+        if event.key == "Up":
+            app.cameraY += app.scale
+        if event.key == "Right":
+            app.cameraX -= app.scale
+        if event.key == "Left":
+            app.cameraX += app.scale
+        if event.key == "p":
+            app.scale *= 1.1
+        if event.key == "o":
+            app.scale /= 1.1
+        if event.key == "Escape":
+            app.UI.append(Button((app.width/2) - 50, (app.height/2) - 25,
+                (app.width/2) + 50, (app.height/2) + 25, "Save?",
+                lambda: saveGame(app)))
+        
+        app.scale = min(app.scale, 300)
+        maxScale = max(app.width/len(app.curBoard[0]),
+            app.height/len(app.curBoard))
+        app.scale = max(app.scale, maxScale)
+        app.scale = round(app.scale)
+        app.cameraX = min(app.cameraX, 0)
+        app.cameraY = min(app.cameraY, 50)
+        app.cameraX = max(app.cameraX, app.width-len(app.curBoard[0])*app.scale)
+        app.cameraY = max(app.cameraY, app.height - len(app.curBoard)*app.scale)
     else:
         app.ui = loadGameOverUI(app)
-    if event.key == "Down":
-        app.cameraY -= app.scale
-    if event.key == "Up":
-        app.cameraY += app.scale
-    if event.key == "Right":
-        app.cameraX -= app.scale
-    if event.key == "Left":
-        app.cameraX += app.scale
-    if event.key == "p":
-        app.scale *= 1.1
-    if event.key == "o":
-        app.scale /= 1.1
-    if event.key == "Escape":
-        app.UI.append(Button((app.width/2) - 50, (app.height/2) - 25,
-            (app.width/2) + 50, (app.height/2) + 25, "Save?",
-            lambda: saveGame(app)))
     
-    app.scale = min(app.scale, 300)
-    maxScale = max(app.width/len(app.curBoard[0]),
-        app.height/len(app.curBoard))
-    app.scale = max(app.scale, maxScale)
-    app.scale = round(app.scale)
-    app.cameraX = min(app.cameraX, 0)
-    app.cameraY = min(app.cameraY, 50)
-    app.cameraX = max(app.cameraX, app.width - len(app.curBoard[0])*app.scale)
-    app.cameraY = max(app.cameraY, app.height - len(app.curBoard)*app.scale)
-
 def purcahseBuildingsList(app, row, col):
     app.UI.append(Button(20, 60, 100, 100, "GoldMine",
         lambda: app.game.curAlly.purchase((row,col), GoldMine())))
@@ -363,16 +379,22 @@ def update(app):
         app.curBoard = app.game.curEnemy.buildings
 
 def drawRoom(app, canvas, row, col, room):
-    if room == None:
-        roomImage = app.images["Empty"]
-    else:
-        roomImage = app.images[room.name]
-    imageWidth, imageHeight = roomImage.size
-    roomImage = app.scaleImage(roomImage, app.scale/imageWidth)
+    rock = app.images["Rock"]
+    imageWidth, imageHeight = rock.size
+    rock = app.scaleImage(rock, app.scale/imageWidth)
+    
     x = (col * app.scale) + app.cameraX
     y = (row * app.scale) + app.cameraY
+
     canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
-        image=ImageTk.PhotoImage(roomImage))
+        image=ImageTk.PhotoImage(rock))
+    
+    if not room == None:
+        roomImage = app.images[room.name]
+        imageWidth, imageHeight = roomImage.size
+        roomImage = app.scaleImage(roomImage, app.scale/imageWidth)
+        canvas.create_image(x + (app.scale / 2), y + (app.scale / 2),
+            image=ImageTk.PhotoImage(roomImage))
 
 def drawMap(app, canvas):
     for row in range(len(app.curBoard)):
