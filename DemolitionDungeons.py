@@ -112,9 +112,9 @@ def loadGameUI(app):
     return result
 
 def loadInfoUI(app):
-    app.UI.append(Button((app.width/2) - 75, (app.height/2) - 50,
-                (app.width/2) + 75, (app.height/2) + 50, 
-                "  Open Read Me\nFor Instructions!"))
+    app.UI.append(Button((app.width/2) - 100, (app.height/2) - 50,
+                (app.width/2) + 100, (app.height/2) + 50, 
+                "   Open Read Me\nFor Instructions!"))
 
 def loadGameOverUI(app):
     result = []

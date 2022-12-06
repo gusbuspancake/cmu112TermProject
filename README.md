@@ -15,19 +15,19 @@ simple resources, players must build a vast dugeon full of traps and troops to d
 
 End of Game:
     The game ends when one player runs out of gold (you can have zero gold at the end 
-of a turn). This is accomplished by destorying the opponents rooms which turns them into Ruins. Ruins cost the player 25 gold a turn.
+of a turn). This is accomplished by destorying the opponents rooms which turns them into Ruins. Ruins cost the player 100 gold a turn.
 
 Buildings:
 - To make a building, click on a tiles adjacent to one of your current buildings.
 You should then be prompted to confirm your decision to make a building at this
 location. After confirmin this decision, select the building you want to make
 with the buttons in the top left corner of the screen
-- All buildings (except the entrance) have 100 health and can be destroyed by enemy troops attacks. Troops only target a building if there are no enemy troops in the room. When a building's health reaches 0, it becomes a Ruin for the rest of the game and cost the player 25 gold a turn
+- All buildings (except the entrance) have 100 health and can be destroyed by enemy troops attacks. Troops only target a building if there are no enemy troops in the room. When a building's health reaches 0, it becomes a Ruin for the rest of the game and cost the player 100 gold a turn
 
 Building Types:
 - Entrance, Starting building, can use warp feature at this building to send troops to the enemy base, can not become Ruin
 
-- Ruin, after a building is destroyed (health = 0) it becomes a Ruin which cost the player with it 25 gold each turn. Players can not replace Ruins
+- Ruin, after a building is destroyed (health = 0) it becomes a Ruin which cost the player with it 100 gold each turn. Players can not replace Ruins
 
 - GoldMine, Cost: 200 Gold, Gives the player 50 gold each turn
 

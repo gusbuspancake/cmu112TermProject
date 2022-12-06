@@ -16,7 +16,7 @@ class Ruin(Building):
         super().__init__()
         self.name = "Ruin"
         self.health = 0
-        self.debt = ("Gold", 25)
+        self.debt = ("Gold", 100)
         self.allyRegiment = oldBuilding.allyRegiment
         self.enemyRegiment = oldBuilding.enemyRegiment
         self.traps = oldBuilding.traps
