@@ -45,6 +45,9 @@ def makeNewGame(app):
     player2Name = app.getUserInput("Enter Player Two Name")
     player2 = Player(player2Name)
 
+    if player1Name == None or player2Name == None:
+        return
+
     makeGame(app, Game(player1, player2))
 
 def getSaves():
@@ -120,6 +123,16 @@ def loadGameOverUI(app):
         "Play Again?", lambda: runApp(width = 800, height = 800)))
     return result
 
+def keepCameraInbounds(app):
+    app.scale = min(app.scale, 300)
+    maxScale = max(app.width/len(app.curBoard[0]), app.height/len(app.curBoard))
+    app.scale = max(app.scale, maxScale)
+    app.scale = round(app.scale)
+    app.cameraX = min(app.cameraX, 0)
+    app.cameraY = min(app.cameraY, 50)
+    app.cameraX = max(app.cameraX, app.width-len(app.curBoard[0])*app.scale)
+    app.cameraY = max(app.cameraY, app.height - len(app.curBoard)*app.scale)
+
 def keyPressed(app, event):
     if app.menu:
         app.UI = loadMenuUI(app)
@@ -145,21 +158,15 @@ def keyPressed(app, event):
                 (app.width/2) + 50, (app.height/2) + 25, "Save?",
                 lambda: saveGame(app)))
         
-        app.scale = min(app.scale, 300)
-        maxScale = max(app.width/len(app.curBoard[0]),
-            app.height/len(app.curBoard))
-        app.scale = max(app.scale, maxScale)
-        app.scale = round(app.scale)
-        app.cameraX = min(app.cameraX, 0)
-        app.cameraY = min(app.cameraY, 50)
-        app.cameraX = max(app.cameraX, app.width-len(app.curBoard[0])*app.scale)
-        app.cameraY = max(app.cameraY, app.height - len(app.curBoard)*app.scale)
+        keepCameraInbounds(app)
     else:
         app.ui = loadGameOverUI(app)
     
 def purcahseBuildingsList(app, row, col):
     app.UI.append(Button(20, 60, 130, 100, "GoldMine",
         lambda: app.game.curAlly.purchase((row,col), GoldMine())))
+    if app.game.turnCount // 2 == 1:
+        return
     app.UI.append(Button(20, 120, 130, 160, "Barracks",
         lambda: app.game.curAlly.purchase((row,col), Barracks())))
     app.UI.append(Button(20, 180, 130, 220, "Factory",
@@ -190,10 +197,10 @@ def target(app, action):
 
 def attack(app, room):
     if app.sameSide:
-        room.allyRegiment.attack(room, room.enemyRegiment)
+        room.allyRegiment.attack(room, room.enemyRegiment, app)
         app.game.curAlly.checkRuins()
     else:
-        room.enemyRegiment.attack(room, room.allyRegiment)
+        room.enemyRegiment.attack(room, room.allyRegiment, app)
         app.game.curEnemy.checkRuins()
 
 def myRoomActions(app, room, roomCords):
@@ -337,6 +344,7 @@ def endTurn(app):
 def timerFired(app):
     if app.menu:
         return
+    keepCameraInbounds(app)
     if app.sameSide:
         app.curBoard = app.game.curAlly.buildings
     else:

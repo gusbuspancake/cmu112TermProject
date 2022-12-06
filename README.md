@@ -7,6 +7,8 @@ opponent's dungeon!
 
 Intructions!
 
+Use the arrow keys to move around and O to zoom out and P to zoom in
+
 Start of Game:
     Each player starts the game with one room, the entrance, and 200 gold. With these 
 simple resources, players must build a vast dugeon full of traps and troops to defend, as well as construct an army to DEMOLISH their opponent's dungeon!

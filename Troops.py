@@ -105,8 +105,11 @@ class Regiment():
             maxHealth += troop.maxHealth
         return maxHealth
 
-    def attack(self, room, enemyRegiment):
+    def attack(self, room, enemyRegiment, app):
         if enemyRegiment == None and self.onAllySide:
+            app.UI.append(Button((app.width/2) - 125, (app.height/2)-40,
+                        (app.width/2)+125, (app.height/2)+40,
+                        f"   There Are No\nTroops Here Bozo!"))
             return False
 
         roomDamage = 0 
@@ -119,7 +122,14 @@ class Regiment():
                 troop.attackAction(room, enemyRegiment)
 
         if enemyRegiment == None and not self.onAllySide:
+            app.UI.append(Button((app.width/2) - 150, (app.height/2)-40,
+                        (app.width/2)+150, (app.height/2)+40,
+                        f"Your Troops Have Done\n{roomDamage} Damage To The Room!"))
             room.health -= roomDamage
+        else:
+            app.UI.append(Button((app.width/2) - 100, (app.height/2)-40,
+                        (app.width/2)+100, (app.height/2)+40,
+                        f"Your Troops Have\nHit Their Troops!"))
 
     def cleanOutDead(self, room):
         for troop in self.troops:
@@ -127,7 +137,6 @@ class Regiment():
                 self.troops.remove(troop)
 
         if len(self.troops) == 0:
-            # self = None, i want this to work
             if self.onAllySide:
                 room.allyRegiment = None
             else:
