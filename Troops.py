@@ -1,4 +1,5 @@
 
+from UI import Button
 
 class Troop():
     def __init__(self, attack, health, movement, cost = ("Gold", 0)):
@@ -90,10 +91,12 @@ class Regiment():
         self.onAllySide = onAllySide
 
     def getCurMovement(self):
-        curMovement = self.troops[0].curMovement
+        curMovement = 999
         for troop in self.troops:
             if troop.curMovement < curMovement:
                 curMovement = troop.curMovement
+        if curMovement == 999:
+            return 0
         return curMovement
 
     def getMaxHealth(self):
@@ -138,13 +141,12 @@ class Regiment():
         else:
             return Regiment(other.troops + self.troops, other.onAllySide)
 
-    def move(self, startCord, finishCord, buildings):
+    def move(self, startCord, finishCord, buildings, app):
         if self.getCurMovement() == 0:
             return
         path = self.movePath(startCord, finishCord, buildings)
         path.pop(0)
         curRoom = buildings[startCord[0]][startCord[1]]
-        # might delete this later
         if self.onAllySide:
             curRoom.allyRegiment = None
         else:
@@ -156,6 +158,9 @@ class Regiment():
             if not self.onAllySide:
                 for trap in curRoom.traps:
                     trap.trip(buildings, roomCord, curRoom, self)
+                    app.UI.append(Button((app.width/2) - 100, (app.height/2)-40,
+                        (app.width/2)+100, (app.height/2)+40,
+                        f"A {trap.name} Has\nHit Your Troop!"))
             if self.getCurMovement() == 0:
                 break
             if not curRoom.enemyRegiment == None:

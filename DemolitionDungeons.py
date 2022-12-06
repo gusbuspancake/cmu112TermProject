@@ -8,6 +8,7 @@ from Player import Player
 from Buildings import GoldMine, Barracks, Factory, Entrance
 from Traps import Bomb, Snare
 from Troops import Soldier, Orc, Wizard
+from UI import Button
 
 import math
 
@@ -16,25 +17,6 @@ import pickle
 
 # https://www.geeksforgeeks.org/python-list-files-in-a-directory/
 import os
-
-class Button():
-    def __init__(self, x0, y0, x1, y1, text, action = None):
-        self.x0 = x0
-        self.y0 = y0
-        self.x1 = x1
-        self.y1 = y1
-        self.text = text
-        self.action = action
-    
-    def checkClicked(self, mouseX, mouseY):
-        return self.x0 <= mouseX <= self.x1 and self.y0 <= mouseY <= self.y1
-
-    def onClick(self):
-        if self.action != None:
-            self.action()
-
-    def __repr__(self):
-        return f'{self.text}'
 
 def appStarted(app):
     # scale is the n by n pixel dimmensions of one room
@@ -108,16 +90,9 @@ def loadMenuUI(app):
     return result
 
 def savesUI(app):
-    app.UI = []
-    i = 0
-    j = 0
-    for save in getSaves():
-        i += 1
-        if i == 4:
-            i = 1
-            j += 1
-        app.UI.append(Button((150*i), 400+(100*j), 100+(200*i), 450+(100*j),
-            save, lambda: loadGame(save, app)))
+    saveName = app.getUserInput("Enter Save File Name")
+    if saveName in getSaves():
+        loadGame(saveName, app)
 
 def loadGameUI(app):
     result = []
@@ -224,7 +199,8 @@ def attack(app, room):
 def myRoomActions(app, room, roomCords):
     if not room.allyRegiment == None:
         app.UI.append(Button(20, 120, 130, 160, "Move", target(app,
-    lambda target: room.allyRegiment.move(roomCords, target, app.curBoard))))
+    lambda target: room.allyRegiment.move(roomCords, target,
+                                            app.curBoard, app))))
         app.UI.append(Button(20, 180, 130, 220, "Attack!",
             lambda: attack(app, room)))
 
@@ -249,7 +225,8 @@ def myRoomActions(app, room, roomCords):
 def theirRoomActions(app, room, roomCords):
     if not room.enemyRegiment == None:
         app.UI.append(Button(20, 120, 130, 160, "Move", target(app,
-    lambda target: room.enemyRegiment.move(roomCords, target, app.curBoard))))
+    lambda target: room.enemyRegiment.move(roomCords, target,
+                                            app.curBoard, app))))
         app.UI.append(Button(20, 180, 130, 220, "Attack!",
             lambda: attack(app, room)))
     
@@ -259,8 +236,8 @@ def theirRoomActions(app, room, roomCords):
 
 def showMyInsides(app, room):
     health = f"Room HP: {room.health}\n"
-    allyTroops = "Allies: "
-    enemyTroops = "Enemies: "
+    allyTroops = "Allies:\n"
+    enemyTroops = "Enemies:\n"
     traps = "Traps: "
     if room.allyRegiment != None:
         for troop in room.allyRegiment.troops:
@@ -271,20 +248,20 @@ def showMyInsides(app, room):
     for trap in room.traps:
         traps += f"{trap.name}\n"
 
-    if allyTroops == "Allies: ":
-        allyTroops += "None \n"
-    if enemyTroops == "Enemies: ":
-        enemyTroops += "None \n"
+    if allyTroops == "Allies:\n":
+        allyTroops = "Allies: None \n"
+    if enemyTroops == "Enemies:\n":
+        enemyTroops = "Enemies: None \n"
     if traps == "Traps: ":
         traps += "None \n"
     info = health + allyTroops + enemyTroops + traps
 
-    app.UI.append(Button(app.width-310, 60, app.width-10, 360, info))
+    app.UI.append(Button(app.width-410, 60, app.width-10, 360, info))
 
 def showTheirInsides(app, room):
     health = f"Room HP: {room.health}\n"
-    allyTroops = "Allies: "
-    enemyTroops = "Enemies: "
+    allyTroops = "Allies:\n"
+    enemyTroops = "Enemies:\n"
     if room.enemyRegiment != None:
         for troop in room.enemyRegiment.troops:
             allyTroops += f"{troop}\n"
@@ -292,13 +269,13 @@ def showTheirInsides(app, room):
         for troop in room.allyRegiment.troops:
             enemyTroops += f"{troop}\n"
     
-    if allyTroops == "Allies: ":
-        allyTroops += "None \n"
-    if enemyTroops == "Enemies: ":
-        enemyTroops += "None \n"
+    if allyTroops == "Allies:\n":
+        allyTroops = "Allies: None \n"
+    if enemyTroops == "Enemies:\n":
+        enemyTroops = "Enemies: None \n"
     info = health + allyTroops + enemyTroops
 
-    app.UI.append(Button(app.width-310, 60, app.width-10, 360, info))
+    app.UI.append(Button(app.width-410, 60, app.width-10, 360, info))
 
 def mousePressed(app, event):
     
